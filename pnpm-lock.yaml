@@ -58,12 +58,12 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 4.0.4
         version: 4.0.4
+      '@techs/dsh-decision':
+        specifier: workspace:~
+        version: link:../decision
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
-      dsh-decision:
-        specifier: workspace:~
-        version: link:../decision
       typescript:
         specifier: ^5.9.0
         version: 5.9.2

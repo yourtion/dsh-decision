@@ -1,5 +1,5 @@
 {
-  "name": "dsh-decision-monorepo",
+  "name": "@techs/dsh-decision-monorepo",
   "private": true,
   "type": "module",
   "scripts": {

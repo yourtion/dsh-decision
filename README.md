@@ -1,4 +1,4 @@
-# dsh-decision
+# @techs/dsh-decision
 
 把概率型决策模型接入 [dsh](https://github.com/deepseek-ai/deepseek-harness)（DeepSeek Harness）作为**决策层**。
 [Jev](https://jev-ai.pro)（TypeSafe System One）是第一个 adapter；架构 provider 无关——后续同类模型
@@ -20,8 +20,8 @@
 ## 仓库结构
 
 ```
-packages/decision/       # 核心包 dsh-decision（服务 + 四切面，无任何 provider）
-packages/decision-jev/   # Jev adapter 包 dsh-decision-jev（systemone wire 客户端）
+packages/decision/       # 核心包 @techs/dsh-decision（服务 + 四切面，无任何 provider）
+packages/decision-jev/   # Jev adapter 包 @techs/dsh-decision-jev（systemone wire 客户端）
 profile/                 # dsh profile 层：dsh-base + 两行插件，软链到 ~/.dsh/profiles/decision
 ```
 
@@ -55,7 +55,7 @@ pnpm run fmt        # oxfmt --check
 
 ```yaml
 - id: decision
-  name: dsh-decision
+  name: "@techs/dsh-decision"
   config:
     provider: jev # 选哪个已注册 adapter
     mode: shadow # shadow | enforce
@@ -64,7 +64,7 @@ pnpm run fmt        # oxfmt --check
     judge: { enabled: false, blockAt: 0.75 }
     approval: { enabled: false, allowAt: 0.85, rejectBelow: 0.5 }
 - id: decision-jev
-  name: dsh-decision-jev
+  name: "@techs/dsh-decision-jev"
   config:
     apiKeyEnv: JEV_API_KEY
     # baseUrl: https://api.typesafe.ai   # 切 TypeSafe 官方端点
@@ -75,7 +75,7 @@ pnpm run fmt        # oxfmt --check
 
 ## 写新 adapter
 
-实现 `dsh-decision` 导出的 `DecisionAdapter`（`{ id, calibrated, evaluate(request) }`，
+实现 `@techs/dsh-decision` 导出的 `DecisionAdapter`（`{ id, calibrated, evaluate(request) }`，
 Noul/Choice/Score 三种问题原语），在自己的插件包里：
 
 ```ts
@@ -85,4 +85,4 @@ export function apply(ctx: Context): void {
 }
 ```
 
-`dsh-decision-jev/src` 是完整参考实现。
+`@techs/dsh-decision-jev/src` 是完整参考实现。

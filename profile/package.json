@@ -2,8 +2,8 @@
   "name": "dsh-profile-decision",
   "private": true,
   "dependencies": {
-    "dsh-decision": "file:../packages/decision",
-    "dsh-decision-jev": "file:../packages/decision-jev"
+    "@techs/dsh-decision": "file:../packages/decision",
+    "@techs/dsh-decision-jev": "file:../packages/decision-jev"
   },
   "dsh": {
     "profile": {

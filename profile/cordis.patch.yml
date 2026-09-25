@@ -4,7 +4,7 @@
 - insert:
     # Core: seams and thresholds; selects which registered adapter decides.
     - id: decision
-      name: dsh-decision
+      name: "@techs/dsh-decision"
       config:
         provider: jev
         mode: shadow
@@ -29,7 +29,7 @@
         #   rejectBelow: 0.5
     # Jev adapter: registers on ctx.decision once the core service exists.
     - id: decision-jev
-      name: dsh-decision-jev
+      name: "@techs/dsh-decision-jev"
       config:
         # API key from the environment; never commit keys.
         apiKeyEnv: JEV_API_KEY

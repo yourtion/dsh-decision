@@ -1,4 +1,4 @@
-# dsh-decision 技术方案
+# @techs/dsh-decision 技术方案
 
 把"概率型决策模型"（TypeSafe Jev 及后续同类）接入 dsh 作为决策层。jev 只是第一个 adapter；
 核心是一个 provider 无关的 typed-judgment 服务，四个 dsh waterfall 切面消费它。
@@ -18,8 +18,8 @@
                 └───────────────────────┘
 ```
 
-- 核心包 `dsh-decision` 以 cordis `Service` 挂载（`super(ctx, 'decision')`），暴露 `ctx.decision`
-  与 `registerAdapter()`。**每个 provider 是独立的插件包**（如 `dsh-decision-jev`，`inject: ['decision']`，
+- 核心包 `@techs/dsh-decision` 以 cordis `Service` 挂载（`super(ctx, 'decision')`），暴露 `ctx.decision`
+  与 `registerAdapter()`。**每个 provider 是独立的插件包**（如 `@techs/dsh-decision-jev`，`inject: ['decision']`，
   加载即注册自己的 adapter）；后续同类模型新增 `packages/decision-<name>` 包即可，核心零改动。
 - 仓库形态对齐上游 harness 约定：pnpm workspace（`packages/*`）、每包独立 tsc 构建、
   oxlint（`.oxlintrc.json`）+ oxfmt（默认配置）静态检查、vitest 按包运行。
@@ -55,13 +55,13 @@
 ## 目录
 
 ```
-packages/decision/       # dsh-decision：核心（类型 + 四切面 + DecisionRuntime 服务）
+packages/decision/       # @techs/dsh-decision：核心（类型 + 四切面 + DecisionRuntime 服务）
   src/types.ts           # DecisionAdapter / 问题与答案原语（Noul/Choice/Score）
   src/config.ts          # Config schema + resolveConfig()
   src/service.ts         # DecisionRuntime（adapter 注册表 + 解析）
   src/seams/{guardrail,routing,judge,approval}.ts   # 纯决策函数 + 薄 ctx.on 包装
   src/index.ts           # Service 子类，注册四切面
-packages/decision-jev/   # dsh-decision-jev：Jev adapter 插件（systemone wire 薄客户端 + key 解析）
+packages/decision-jev/   # @techs/dsh-decision-jev：Jev adapter 插件（systemone wire 薄客户端 + key 解析）
 profile/                 # dsh profile 层（bundles dsh-base + 两行插件），软链到 ~/.dsh/profiles/decision
 ```
 

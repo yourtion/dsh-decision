@@ -1,3 +1,3 @@
 - insert:
     - id: decision-jev
-      name: dsh-decision-jev
+      name: "@techs/dsh-decision-jev"

@@ -14,7 +14,7 @@ import {
   type DecisionRequest,
   type NoulAnswer,
   type ScoreAnswer,
-} from "dsh-decision";
+} from "@techs/dsh-decision";
 import type { JevSpec } from "./config.js";
 
 /** Retry once on these statuses with linear backoff, per the API reference. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createJevAdapter } from "./client.js";
-import { DecisionError } from "dsh-decision";
+import { DecisionError } from "@techs/dsh-decision";
 import type { JevSpec } from "./config.js";
 
 const spec: JevSpec = {

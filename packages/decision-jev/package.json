@@ -1,5 +1,5 @@
 {
-  "name": "dsh-decision-jev",
+  "name": "@techs/dsh-decision-jev",
   "version": "0.1.0",
   "private": true,
   "description": "Jev (TypeSafe System One) adapter for the dsh decision layer",
@@ -28,14 +28,14 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",
+    "@techs/dsh-decision": "workspace:~",
     "@types/node": "^24.0.0",
-    "dsh-decision": "workspace:~",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",
-    "dsh-decision": "workspace:~"
+    "@techs/dsh-decision": "workspace:~"
   },
   "engines": {
     "node": ">=22.19"
