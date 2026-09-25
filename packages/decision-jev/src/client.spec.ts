@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createJevAdapter } from "./client.js";
-import { DecisionError } from "@techs/dsh-decision";
+import { DecisionError, ProviderValidationError } from "@techs/dsh-decision";
 import type { JevSpec } from "./config.js";
 
 const spec: JevSpec = {
@@ -40,6 +40,9 @@ const request = {
 };
 
 describe("jev adapter wire mapping", () => {
+  it("does not claim calibration without domain evidence", () => {
+    expect(createJevAdapter(spec).calibrated).toBe(false);
+  });
   it("posts the systemone body under the provider key and maps answers back", async () => {
     const { impl, calls } = scripted([
       {
@@ -126,5 +129,41 @@ describe("jev adapter wire mapping", () => {
         questions: { harmful: { kind: "noul", instructions: "Q" } },
       }),
     ).rejects.toBeInstanceOf(DecisionError);
+  });
+
+  it.each([NaN, Infinity, -0.5, 1.7])("rejects invalid binary probability %s", async (value) => {
+    const { impl } = scripted([{ body: { answers: { harmful: { type: "noul", noul: value } } } }]);
+    await expect(
+      createJevAdapter(spec, impl).evaluate({
+        state: "x",
+        questions: { harmful: { kind: "noul", instructions: "Harmful?" } },
+      }),
+    ).rejects.toBeInstanceOf(ProviderValidationError);
+  });
+
+  it("rejects unknown choices, invalid distributions and wrong kinds", async () => {
+    const invalid = [
+      { type: "choice", choice: "unknown", probabilities: { cheap: 1 }, confidence: 1 },
+      { type: "choice", choice: "cheap", probabilities: { unknown: 1 }, confidence: 1 },
+      { type: "choice", choice: "cheap", probabilities: { cheap: 1.2 }, confidence: 1 },
+      { type: "choice", choice: "cheap", probabilities: { cheap: 1 }, confidence: -0.1 },
+      { type: "noul", noul: 0.5 },
+      null,
+    ];
+    for (const answer of invalid) {
+      const { impl } = scripted([{ body: { answers: { tier: answer } } }]);
+      await expect(
+        createJevAdapter(spec, impl).evaluate({
+          state: "x",
+          questions: {
+            tier: {
+              kind: "choice",
+              instructions: "Tier?",
+              options: { cheap: null, flagship: null },
+            },
+          },
+        }),
+      ).rejects.toBeInstanceOf(ProviderValidationError);
+    }
   });
 });

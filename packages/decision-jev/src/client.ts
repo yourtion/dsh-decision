@@ -7,6 +7,8 @@
 
 import {
   DecisionError,
+  ProviderValidationError,
+  validateAnswer,
   type ChoiceAnswer,
   type DecisionAdapter,
   type DecisionAnswer,
@@ -51,7 +53,11 @@ function toWireQuestion(question: DecisionQuestion): WireQuestion {
 }
 
 /** Map one wire answer onto the neutral union. */
-function fromWireAnswer(key: string, answer: WireAnswer): DecisionAnswer {
+function fromWireAnswer(key: string, value: unknown): DecisionAnswer {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new ProviderValidationError(`jev: malformed answer for question "${key}".`);
+  }
+  const answer = value as WireAnswer;
   switch (answer.type) {
     case "noul": {
       if (typeof answer.noul !== "number") break;
@@ -62,6 +68,9 @@ function fromWireAnswer(key: string, answer: WireAnswer): DecisionAnswer {
       if (
         typeof answer.choice !== "string" ||
         answer.probabilities === undefined ||
+        answer.probabilities === null ||
+        typeof answer.probabilities !== "object" ||
+        Array.isArray(answer.probabilities) ||
         typeof answer.confidence !== "number"
       )
         break;
@@ -77,6 +86,9 @@ function fromWireAnswer(key: string, answer: WireAnswer): DecisionAnswer {
       if (
         typeof answer.score !== "number" ||
         answer.probabilities === undefined ||
+        answer.probabilities === null ||
+        typeof answer.probabilities !== "object" ||
+        Array.isArray(answer.probabilities) ||
         typeof answer.confidence !== "number"
       )
         break;
@@ -89,7 +101,7 @@ function fromWireAnswer(key: string, answer: WireAnswer): DecisionAnswer {
       return score;
     }
   }
-  throw new DecisionError(
+  throw new ProviderValidationError(
     `jev: malformed answer for question "${key}" (type=${JSON.stringify(answer.type)}).`,
   );
 }
@@ -104,7 +116,9 @@ export function createJevAdapter(spec: JevSpec, fetchImpl: typeof fetch = fetch)
   const endpoint = `${spec.baseUrl.replace(/\/+$/, "")}/v1/systemone`;
   return {
     id: "jev",
-    calibrated: true,
+    // No provider/model/domain calibration evidence is bundled with this package.
+    // An operator may still opt out via approval.requireCalibrated, explicitly.
+    calibrated: false,
     async evaluate(request: DecisionRequest): Promise<Readonly<Record<string, DecisionAnswer>>> {
       const body = JSON.stringify({
         state: request.state,
@@ -148,22 +162,28 @@ export function createJevAdapter(spec: JevSpec, fetchImpl: typeof fetch = fetch)
           response.status,
         );
       }
-      let payload: { answers?: Record<string, WireAnswer> };
+      let payload: unknown;
       try {
-        payload = (await response.json()) as { answers?: Record<string, WireAnswer> };
+        payload = await response.json();
       } catch (error) {
         throw new DecisionError(`jev: response is not JSON (${String(error)}).`);
       }
-      const answers = payload.answers;
-      if (answers === undefined || typeof answers !== "object") {
-        throw new DecisionError("jev: response has no answers object.");
+      if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+        throw new ProviderValidationError("jev: response must be an object.");
       }
+      const answers = (payload as { answers?: unknown }).answers;
+      if (answers === null || typeof answers !== "object" || Array.isArray(answers)) {
+        throw new ProviderValidationError("jev: response has no answers object.");
+      }
+      const answerMap = answers as Record<string, unknown>;
       const mapped: Record<string, DecisionAnswer> = {};
       for (const key of Object.keys(request.questions)) {
-        const answer = answers[key];
+        const answer = answerMap[key];
         if (answer === undefined)
-          throw new DecisionError(`jev: answer missing for question "${key}".`);
-        mapped[key] = fromWireAnswer(key, answer);
+          throw new ProviderValidationError(`jev: answer missing for question "${key}".`);
+        const mappedAnswer = fromWireAnswer(key, answer);
+        validateAnswer(key, request.questions[key]!, mappedAnswer);
+        mapped[key] = mappedAnswer;
       }
       return mapped;
     },

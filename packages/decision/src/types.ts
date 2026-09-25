@@ -91,3 +91,11 @@ export class DecisionError extends Error {
     this.name = "DecisionError";
   }
 }
+
+/** A provider returned an answer that violates the requested question contract. */
+export class ProviderValidationError extends DecisionError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ProviderValidationError";
+  }
+}

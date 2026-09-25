@@ -4,7 +4,7 @@
 [Jev](https://jev-ai.pro)（TypeSafe System One）是第一个 adapter；架构 provider 无关——后续同类模型
 新增一个 `packages/decision-<name>` 包即可，核心零改动。
 
-设计决策见 [design.md](design.md)。
+v1 设计见 [design.md](design.md)，v2 的审查结论与实施顺序见 [v2-plan.md](v2-plan.md)。
 
 ## 四个切面
 
@@ -15,7 +15,7 @@
 | Judge     | `tools/post-execute` | 结果含 prompt injection / 暴露密件则 block 并换成纠正性反馈                                            | 关     |
 | 机审      | `approval/request`   | P(allow) 高于阈值自动 `allowed-once`；uncalibrated adapter 永不自动放行                                | 关     |
 
-所有切面默认 `mode: shadow`：照常调用决策模型并记录日志，但一律放行——先观察判断质量再切 `enforce`。
+所有切面默认 `mode: shadow`：决策模型在旁路运行，原生决策链立即继续。先观察判断质量再切 `enforce`。
 
 ## 仓库结构
 
@@ -70,8 +70,8 @@ pnpm run fmt        # oxfmt --check
     # baseUrl: https://api.typesafe.ai   # 切 TypeSafe 官方端点
 ```
 
-关键安全取舍（详见 design.md）：adapter 调用失败时 guardrail 默认放行（可配 `ask`/`deny`）、
-审批失败一律委托人工、非校准 adapter 不能自动放行审批、发给外部 API 的 state 最小化。
+关键安全取舍（详见 v2-plan.md）：adapter 调用失败时 guardrail 默认放行（可配 `ask`/`deny`）、
+审批失败一律委托人工。Jev adapter 当前不声明经过领域校准，因此默认不能自动批准；发给外部 API 的 state 仍可能包含原始工具参数，脱敏属于后续阶段。
 
 ## 写新 adapter
 
