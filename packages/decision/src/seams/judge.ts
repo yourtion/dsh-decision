@@ -6,7 +6,7 @@
 
 import type { ToolExecutionResult } from "@deepseek-ai/dsh-tools";
 import type { ContentBlock } from "@deepseek-ai/dsh-llm";
-import type { DecisionAnswer, DecisionRequest } from "../types.js";
+import type { JudgmentRequest, JudgmentResult } from "../judgment.js";
 import type { JudgeSpec } from "../config.js";
 
 /** Cap on the result text shipped to the decision model. */
@@ -43,38 +43,33 @@ function resultText(result: Readonly<ToolExecutionResult>): string {
  * @param toolName - the tool that produced the result.
  * @param result - the settled execution result.
  * @param signal - cancellation lifetime of the gate.
- * @returns the decision request carrying both Noul questions.
+ * @returns the judgment request carrying both Binary questions.
  */
 export function buildJudgeRequest(
   toolName: string,
   result: Readonly<ToolExecutionResult>,
-  signal?: AbortSignal,
-): DecisionRequest {
+): JudgmentRequest {
   return {
     state: { tool: toolName, result: resultText(result) },
-    signal,
     questions: {
-      injection: { kind: "noul", instructions: INJECTION_INSTRUCTIONS },
-      exposure: { kind: "noul", instructions: EXPOSURE_INSTRUCTIONS },
+      injection: { kind: "binary", instructions: INJECTION_INSTRUCTIONS },
+      exposure: { kind: "binary", instructions: EXPOSURE_INSTRUCTIONS },
     },
   };
 }
 
 /**
  * Map the two result-danger probabilities onto the judgment.
- * @param answers - adapter answers for `injection` and `exposure`.
+ * @param result - provider answers for `injection` and `exposure`.
  * @param spec - resolved judge spec.
  * @returns the verdict; `block` replaces the result with corrective feedback.
- * @throws on a missing or non-Noul answer.
+ * @throws on a missing or non-Binary answer.
  */
-export function decideJudge(
-  answers: Readonly<Record<string, DecisionAnswer>>,
-  spec: JudgeSpec,
-): JudgeVerdict {
+export function decideJudge(result: JudgmentResult, spec: JudgeSpec): JudgeVerdict {
   const read = (key: string): number => {
-    const answer = answers[key];
-    if (answer === undefined || answer.kind !== "noul") {
-      throw new Error(`dsh-decision: judge expected a noul answer for "${key}".`);
+    const answer = result.answers[key];
+    if (answer === undefined || answer.kind !== "binary") {
+      throw new Error(`dsh-decision: judge expected a binary answer for "${key}".`);
     }
     return answer.probability;
   };

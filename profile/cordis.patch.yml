@@ -1,18 +1,22 @@
 # dsh-decision — decision layer as a profile patch over dsh-base.
-# Shadow mode by default: every seam calls Jev and logs its verdict without
-# enforcing. Switch mode to enforce only after watching shadow logs.
+# Machine Decision in shadow: Jev evaluates in the background while native
+# DSH behavior stays authoritative. Review evidence before enforcing.
 - insert:
-    # Core: seams and thresholds; selects which registered adapter decides.
+    # Core: neutral judgments, deterministic policy and DSH seams.
     - id: decision
       name: "@techs/dsh-decision"
       config:
         provider: jev
-        mode: shadow
+        permission: machine
+        enforcement: shadow
+        machine:
+          uncertain: human
         guardrail:
           enabled: true
           # tools: [bash, run_command]          # empty screens every tool (0.5–1.5s per call)
-          # allowBelow: 0.2                     # risk below → allow
-          # denyAt: 0.7                         # risk at/above → deny; between → ask (human approval)
+          # risks:
+          #   secretExposure: { reviewAt: 0.15, denyAt: 0.70 } # experimental
+          #   destructive: { reviewAt: 0.35, denyAt: 0.85 }    # experimental
           # onFailure: allow                    # adapter failure stance: allow | ask | deny
         # routing:
         #   enabled: true
@@ -23,8 +27,7 @@
         # judge:
         #   enabled: true
         #   blockAt: 0.75
-        # approval:
-        #   enabled: true
+        # approval:                            # enabled automatically in machine mode
         #   allowAt: 0.85
         #   rejectBelow: 0.5
     # Jev adapter: registers on ctx.decision once the core service exists.

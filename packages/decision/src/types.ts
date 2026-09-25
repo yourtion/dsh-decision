@@ -1,8 +1,6 @@
 /**
- * Provider-agnostic typed-judgment primitives. The shapes mirror TypeSafe
- * System One's question types so the Jev adapter is a pure wire mapping, but
- * nothing here knows about Jev: any calibrated decision model can implement
- * {@link DecisionAdapter}.
+ * v1 adapter vocabulary retained for compatibility. New providers should use
+ * the Binary/Categorical/Ordinal contracts in judgment.ts.
  * @module dsh-decision/types
  */
 
@@ -40,7 +38,7 @@ export interface ScoreQuestion {
 
 export type DecisionQuestion = NoulQuestion | ChoiceQuestion | ScoreQuestion;
 
-/** P(true), calibrated for Jev. */
+/** P(true), without any implied calibration claim. */
 export interface NoulAnswer {
   readonly kind: "noul";
   readonly probability: number;

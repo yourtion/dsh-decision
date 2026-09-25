@@ -6,9 +6,19 @@
  */
 
 import z from "@deepseek-ai/schemastery";
+import type { GuardrailRisk, RiskThresholds } from "./policy/risk.js";
+import { GUARDRAIL_RISKS } from "./policy/risk.js";
 
 /** Where decisions take effect. `shadow` observes and logs without enforcing. */
 export type DecisionMode = "shadow" | "enforce";
+export type EnforcementMode = DecisionMode;
+/** `native` delegates approval to DSH; `machine` may answer an existing DSH ask. */
+export type PermissionMode = "native" | "machine";
+export type UncertainPolicy = "human" | "deny";
+
+export interface MachineConfig {
+  readonly uncertain?: UncertainPolicy;
+}
 
 /** Guardrail stance when the adapter call itself fails. */
 export type GuardrailFailure = "allow" | "ask" | "deny";
@@ -17,10 +27,12 @@ export interface GuardrailConfig {
   readonly enabled?: boolean;
   /** Exact tool names to screen; empty screens every tool (including PTC inner calls). */
   readonly tools?: string[];
-  /** max(harmful, exposure) below this always allows. */
+  /** @deprecated Translated to every risk's reviewAt when risks is omitted. */
   readonly allowBelow?: number;
-  /** max(harmful, exposure) at or above this denies. Between the thresholds asks. */
+  /** @deprecated Translated to every risk's denyAt when risks is omitted. */
   readonly denyAt?: number;
+  /** Experimental per-risk thresholds; not calibrated probabilities. */
+  readonly risks?: Partial<Record<GuardrailRisk, Partial<RiskThresholds>>>;
   /** Stance when the adapter call fails. */
   readonly onFailure?: GuardrailFailure;
 }
@@ -57,7 +69,7 @@ export interface ApprovalConfig {
   readonly allowAt?: number;
   /** P(allow) below this answers `rejected`. Between the two delegates to humans. */
   readonly rejectBelow?: number;
-  /** Require a calibrated adapter for `allowed-once` (never auto-allow uncalibrated). */
+  /** @deprecated v2 always requires a matching scoped calibration profile. */
   readonly requireCalibrated?: boolean;
 }
 
@@ -65,6 +77,12 @@ export interface ApprovalConfig {
 export interface Config {
   /** Active adapter id; must match an adapter registered on `ctx.decision` (e.g. by dsh-decision-jev). */
   readonly provider?: string;
+  /** Maximum duration of one JudgmentProvider evaluation. */
+  readonly timeoutMs?: number;
+  readonly permission?: PermissionMode;
+  readonly enforcement?: EnforcementMode;
+  readonly machine?: MachineConfig;
+  /** @deprecated Use `enforcement`. */
   readonly mode?: DecisionMode;
   readonly guardrail?: GuardrailConfig;
   readonly routing?: RoutingConfig;
@@ -77,12 +95,24 @@ const probability = z.number().min(0).max(1);
 /** Schemastery validation for {@link Config}; structural defaults come from {@link resolveConfig}. */
 export const Config: z<Config> = z.object({
   provider: z.string(),
+  timeoutMs: z.number().min(1),
+  permission: z.union(["native", "machine"] as const),
+  enforcement: z.union(["shadow", "enforce"] as const),
+  machine: z.object({ uncertain: z.union(["human", "deny"] as const) }),
   mode: z.union(["shadow", "enforce"] as const),
   guardrail: z.object({
     enabled: z.boolean(),
     tools: z.array(z.string()),
     allowBelow: probability,
     denyAt: probability,
+    risks: z.object({
+      destructive: z.object({ reviewAt: probability, denyAt: probability }),
+      secretExposure: z.object({ reviewAt: probability, denyAt: probability }),
+      privacyExposure: z.object({ reviewAt: probability, denyAt: probability }),
+      externalSideEffect: z.object({ reviewAt: probability, denyAt: probability }),
+      privilegeEscalation: z.object({ reviewAt: probability, denyAt: probability }),
+      scopeViolation: z.object({ reviewAt: probability, denyAt: probability }),
+    }),
     onFailure: z.union(["allow", "ask", "deny"] as const),
   }),
   routing: z.object({
@@ -118,6 +148,7 @@ export interface GuardrailSpec {
   readonly tools: ReadonlySet<string>;
   readonly allowBelow: number;
   readonly denyAt: number;
+  readonly risks: Readonly<Record<GuardrailRisk, RiskThresholds>>;
   readonly onFailure: GuardrailFailure;
 }
 
@@ -146,6 +177,11 @@ export interface ApprovalSpec {
 /** Resolved configuration: every field concrete, computed once at plugin load. */
 export interface ResolvedConfig {
   readonly provider: string;
+  readonly timeoutMs: number;
+  readonly permission: PermissionMode;
+  readonly enforcement: EnforcementMode;
+  readonly machine: { readonly uncertain: UncertainPolicy };
+  /** @deprecated Alias for `enforcement` during migration. */
   readonly mode: DecisionMode;
   readonly guardrail: GuardrailSpec;
   readonly routing: RoutingSpec;
@@ -161,12 +197,64 @@ export interface ResolvedConfig {
  * @throws when a seam's thresholds are inverted or routing is enabled without routes.
  */
 export function resolveConfig(config: Config): ResolvedConfig {
+  const timeoutMs = config.timeoutMs ?? 8_000;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) {
+    throw new Error("dsh-decision: timeoutMs must be a positive integer.");
+  }
+  if (
+    config.mode !== undefined &&
+    config.enforcement !== undefined &&
+    config.mode !== config.enforcement
+  ) {
+    throw new Error("dsh-decision: mode and enforcement disagree.");
+  }
+  const enforcement = config.enforcement ?? config.mode ?? "shadow";
+  const permission = config.permission ?? (config.approval?.enabled ? "machine" : "native");
   const guardrailRaw = config.guardrail ?? {};
+  const defaults: Readonly<Record<GuardrailRisk, RiskThresholds>> = {
+    destructive: { reviewAt: 0.35, denyAt: 0.85 },
+    secretExposure: { reviewAt: 0.15, denyAt: 0.7 },
+    privacyExposure: { reviewAt: 0.25, denyAt: 0.75 },
+    externalSideEffect: { reviewAt: 0.35, denyAt: 0.85 },
+    privilegeEscalation: { reviewAt: 0.3, denyAt: 0.8 },
+    scopeViolation: { reviewAt: 0.5, denyAt: 0.9 },
+  };
+  const legacyThresholds =
+    guardrailRaw.allowBelow !== undefined || guardrailRaw.denyAt !== undefined;
+  if (legacyThresholds && guardrailRaw.risks !== undefined) {
+    throw new Error("dsh-decision: legacy guardrail thresholds cannot be combined with risks.");
+  }
+  const risks = Object.fromEntries(
+    GUARDRAIL_RISKS.map((risk) => [
+      risk,
+      {
+        reviewAt:
+          guardrailRaw.risks?.[risk]?.reviewAt ??
+          (legacyThresholds ? (guardrailRaw.allowBelow ?? 0.2) : defaults[risk].reviewAt),
+        denyAt:
+          guardrailRaw.risks?.[risk]?.denyAt ??
+          (legacyThresholds ? (guardrailRaw.denyAt ?? 0.7) : defaults[risk].denyAt),
+      },
+    ]),
+  ) as Record<GuardrailRisk, RiskThresholds>;
+  for (const risk of GUARDRAIL_RISKS) {
+    const thresholds = risks[risk];
+    if (
+      !Number.isFinite(thresholds.reviewAt) ||
+      !Number.isFinite(thresholds.denyAt) ||
+      thresholds.reviewAt < 0 ||
+      thresholds.denyAt > 1 ||
+      thresholds.reviewAt >= thresholds.denyAt
+    ) {
+      throw new Error(`dsh-decision: invalid guardrail thresholds for ${risk}.`);
+    }
+  }
   const guardrail: GuardrailSpec = {
     enabled: guardrailRaw.enabled ?? true,
     tools: new Set(guardrailRaw.tools ?? []),
     allowBelow: guardrailRaw.allowBelow ?? 0.2,
     denyAt: guardrailRaw.denyAt ?? 0.7,
+    risks,
     onFailure: guardrailRaw.onFailure ?? "allow",
   };
 
@@ -186,11 +274,14 @@ export function resolveConfig(config: Config): ResolvedConfig {
 
   const approvalRaw = config.approval ?? {};
   const approval: ApprovalSpec = {
-    enabled: approvalRaw.enabled ?? false,
+    enabled: approvalRaw.enabled ?? permission === "machine",
     allowAt: approvalRaw.allowAt ?? 0.85,
     rejectBelow: approvalRaw.rejectBelow ?? 0.5,
     requireCalibrated: approvalRaw.requireCalibrated ?? true,
   };
+  if (permission === "machine" && !approval.enabled) {
+    throw new Error("dsh-decision: machine permission requires approval.enabled.");
+  }
 
   for (const [seam, spec] of [
     ["guardrail", { low: guardrail.allowBelow, high: guardrail.denyAt }],
@@ -208,7 +299,11 @@ export function resolveConfig(config: Config): ResolvedConfig {
 
   return {
     provider: config.provider ?? "jev",
-    mode: config.mode ?? "shadow",
+    timeoutMs,
+    permission,
+    enforcement,
+    machine: { uncertain: config.machine?.uncertain ?? "human" },
+    mode: enforcement,
     guardrail,
     routing,
     judge,

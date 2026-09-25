@@ -8,6 +8,7 @@ import type { Context } from "@deepseek-ai/cordis";
 import { Config, resolveJevConfig } from "./config.js";
 import type { JevConfig } from "./config.js";
 import { createJevAdapter } from "./client.js";
+import { createJevProvider } from "./provider.js";
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = "decision-jev";
@@ -18,6 +19,7 @@ export const inject = ["decision"];
 export { Config };
 export type { JevConfig };
 export { createJevAdapter } from "./client.js";
+export { createJevProvider } from "./provider.js";
 export { resolveJevConfig } from "./config.js";
 
 /**
@@ -28,6 +30,18 @@ export { resolveJevConfig } from "./config.js";
  */
 export function apply(ctx: Context, config: JevConfig): void {
   const spec = resolveJevConfig(config);
-  const unregister = ctx.decision.registerAdapter(createJevAdapter(spec));
-  ctx.effect(() => unregister);
+  ctx.effect(() => {
+    const unregisterProvider = ctx.decision.registerProvider(createJevProvider(spec));
+    let unregisterAdapter: () => void;
+    try {
+      unregisterAdapter = ctx.decision.registerAdapter(createJevAdapter(spec));
+    } catch (error) {
+      unregisterProvider();
+      throw error;
+    }
+    return () => {
+      unregisterAdapter();
+      unregisterProvider();
+    };
+  });
 }

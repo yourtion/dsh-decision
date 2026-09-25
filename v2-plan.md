@@ -6,12 +6,12 @@
 
 以下约束修正原提案中容易被误解的部分：
 
-1. **Machine 不是 DSH 已存在的权限档位。** DSH 目前将审批策略 `ask | never` 与部署层权限预设结合。v2 的 `permission: auto | machine | full-access` 要先明确与原生预设、sandbox、tool policy 的映射；本插件不能仅凭跳过自身 guardrail 就承诺 Full Access。
+1. **Machine 不是 DSH 已存在的权限档位。** DSH 目前将审批策略 `ask | never` 与部署层权限预设结合；上游的 `auto` 名称已保留给其 Auto review。插件采用 `permission: native | machine`，让 DSH 原生预设继续管理 Auto 与 Full Access。插件不能仅凭跳过自身 guardrail 就承诺 Full Access。
 2. **审批来源必须穿过真实事件边界。** 上游 `ApprovalRequestEvent` 没有 `origin` 字段。Phase 0 在本插件产生的 `ask.reason` 上加可识别标记；该标记只让机审委托人工，伪造也不会获得放行。长期应推动上游加入结构化 `origin` 或在同一调用标识上关联来源。
 3. **未经验证的概率不能支撑自动放行。** 原 Jev adapter 声明 `calibrated: true`，但仓库没有相关模型、领域、样本和指标；Phase 0 将其改为 `false`。Phase 2 默认关闭自动 `allowed-once`，直到有可审计的 `provider + model + domain + policyVersion` 资格记录。阈值只作为实验配置。
 4. **Shadow 必须旁路运行。** 外部模型评估不得挡住 `next()`；错误必须被记录并吞掉。严格的“除了延迟之外完全等价”还要求不改变持久状态、审批、路由、结果及取消路径；后台资源竞争需要通过集成测试和运行指标观察。
 5. **Sanitizer 不能承诺识别所有秘密。** 未识别的私密数据仍可能出现在任意工具参数或结果中。Phase 3 要设默认出站数据策略、明确不支持的内容，并给检测失败定义拒发或本地回退行为。
-6. **Policy 输入应固定并版本化。** 判定函数只依赖规范化 state、已验证 judgments、配置快照和 policyVersion；时间、随机数、网络调用与日志写入都在函数外。不同风险的拒绝优先于复核，复核优先于放行。
+6. **Policy 输入应固定并版本化。** 判定函数只依赖规范化 state、已验证 judgments、配置快照和 policyVersion；时间、随机数、网络调用与日志写入都在函数外。policyVersion 包含策略阈值与不确定性配置的规范化哈希，避免同名版本跨配置复用。不同风险的拒绝优先于复核，复核优先于放行。
 
 ## 实施顺序与验收
 
@@ -33,11 +33,15 @@
 - Guardrail 一次评估六维风险，使用逐维 `reviewAt/denyAt` 与 `deny > review > allow` 聚合。六维独立性先由实际 policy effect 验证，不提前增设 severity。
 - 以固定 trace 回放确认同输入、同版本给出同结果。
 
+当前进度：中立类型、provider 注册/能力/结果校验、旧 adapter 兼容、Jev 映射、六维 Guardrail 和版本化纯 Policy 已实现；四个 seam 都通过统一 JudgmentRuntime 调用 provider。Routing/Judge 的具体判断维度与策略仍沿用 v1，后续单独扩展。Score 是有序 rubric 的**期望位置**，可为小数；概率键是 rubric 索引。
+
 ### Phase 2：Machine Decision
 
-- 先完成与上游权限预设和审批事件的映射，再暴露 `permission × enforcement` 配置。
-- `auto` 保留原生链；`machine` 只接管明确可机审的原生审批；`review` 交给 human 或按 `uncertain: deny` 拒绝；`full-access` 仍遵守实际 DSH sandbox/工具能力。
+- 插件暴露 `native | machine × shadow | enforce` 配置，Auto/Full Access 留给上游权限预设。插件的 Guardrail/Judge 在 enforce 下是独立限制，用户应按部署策略启停。
+- `native` 保留原生审批链；`machine` 只接管上游实际发出的审批；`review` 交给 human 或按 `uncertain: deny` 拒绝。
 - 默认不自动允许未取得领域资格的 provider/model。集成测试覆盖允许一次、拒绝、人工委托、无人值守拒绝和 shadow。
+
+当前进度：审批接管、资格匹配、review 策略与 shadow 已实现；完整上游权限预设/UI 切换和真实 AgentLoop/ToolRuntime/ApprovalService 端到端测试仍待完成。Jev 不附带自动放行资格。
 
 ### 后续
 

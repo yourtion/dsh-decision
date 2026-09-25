@@ -47,10 +47,19 @@ export function validateAnswer(
       probability(answer.confidence, `${key}.confidence`);
       return;
     case "score":
-      if (question.kind !== "score" || !Number.isFinite(answer.score)) {
+      if (
+        question.kind !== "score" ||
+        !Number.isFinite(answer.score) ||
+        answer.score < 0 ||
+        answer.score > question.levels.length - 1
+      ) {
         throw new ProviderValidationError(`Answer ${JSON.stringify(key)} has an invalid score.`);
       }
-      distribution(answer.probabilities, question.levels, `${key}.probabilities`);
+      distribution(
+        answer.probabilities,
+        question.levels.map((_, index) => String(index)),
+        `${key}.probabilities`,
+      );
       probability(answer.confidence, `${key}.confidence`);
   }
 }

@@ -1,18 +1,44 @@
 /**
- * Approval seam: answer `approval/request` with a machine judgment, delegating
- * to human answerers in the middle band — and never when uncalibrated.
+ * Approval seam: v2 policy uses a scoped qualification for automatic grants.
+ * Legacy builders and `decideApproval` remain for v1 adapter callers.
  * @module dsh-decision/seams/approval
  */
 
 import type { DecisionAnswer, DecisionRequest } from "../types.js";
+import type { JudgmentRequest, JudgmentResult } from "../judgment.js";
 import type { ApprovalOutcome } from "@deepseek-ai/dsh-user-approval";
-import type { ApprovalSpec } from "../config.js";
+import type { ApprovalSpec, UncertainPolicy } from "../config.js";
+import { evaluateMachineApproval, type MachineApprovalDecision } from "../policy/approval.js";
 
 const APPROVAL_INSTRUCTIONS =
   "An AI coding agent asks a human for one-time permission for the action in the attached state. Should it be allowed to proceed autonomously?";
 
 /** Delegate marker: hand the question to the remaining answerers (humans/UI). */
 export const DELEGATE: unique symbol = Symbol("delegate");
+
+/** v2 approval judgment; DSH supplies the pending native approval question. */
+export function buildMachineApprovalRequest(
+  toolName: string,
+  reason: string | undefined,
+): JudgmentRequest {
+  return {
+    state: { tool: toolName, ...(reason === undefined ? {} : { reason }) },
+    questions: { allow: { kind: "binary", instructions: APPROVAL_INSTRUCTIONS } },
+  };
+}
+
+export function decideMachineApproval(
+  result: JudgmentResult,
+  spec: ApprovalSpec,
+  qualified: boolean,
+  uncertain: UncertainPolicy,
+): MachineApprovalDecision {
+  const answer = result.answers.allow;
+  if (answer?.kind !== "binary") {
+    throw new Error('dsh-decision: approval expected a binary answer for "allow".');
+  }
+  return evaluateMachineApproval(answer.probability, spec, qualified, uncertain);
+}
 
 /** Machine answer: a closed outcome, or {@link DELEGATE} to pass on the question. */
 export type MachineApproval = ApprovalOutcome | typeof DELEGATE;

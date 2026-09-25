@@ -1,93 +1,47 @@
-/**
- * Guardrail seam: screen each pending tool call with two Noul questions and
- * map the danger probabilities onto allow / deny / ask.
- * @module dsh-decision/seams/guardrail
- */
-
-import type { DecisionAnswer, DecisionRequest, DecisionState } from "../types.js";
+/** Multi-dimensional tool-risk judgment with a deterministic policy. */
+import type { DecisionState } from "../types.js";
+import type { JudgmentRequest, JudgmentResult } from "../judgment.js";
 import type { GuardrailSpec } from "../config.js";
+import {
+  GUARDRAIL_RISKS,
+  evaluateGuardrailPolicy,
+  type GuardrailRisk,
+  type PolicyDecision,
+} from "../policy/risk.js";
 
-/** The two questions asked per screened call. */
-const HARMFUL_INSTRUCTIONS =
-  "An AI coding agent wants to run the tool call in the attached state. Would executing it cause irreversible destruction, unwanted production changes, or other real-world harm?";
-const HARMFUL_CRITERIA = {
-  true: "The call deletes or overwrites pre-existing data, mutates production systems, spends money, or otherwise cannot be undone.",
-  false:
-    "The call only reads, creates new objects, or modifies working-tree state that is recoverable.",
+const INSTRUCTIONS: Readonly<Record<GuardrailRisk, string>> = {
+  destructive: "Could this tool call destroy or irreversibly change existing data or systems?",
+  secretExposure: "Could this tool call expose credentials, tokens, keys, or other secrets?",
+  privacyExposure: "Could this tool call expose private user data?",
+  externalSideEffect: "Does this tool call create externally visible side effects?",
+  privilegeEscalation: "Could this tool call increase or bypass privileges?",
+  scopeViolation: "Is this tool call outside the user's requested scope?",
 };
-const EXPOSURE_INSTRUCTIONS =
-  "Does the tool call in the attached state send secrets, credentials, or private data across a trust boundary (to an external service, domain, or person other than the local user)?";
-const EXPOSURE_CRITERIA = {
-  true: "The arguments contain API keys, tokens, private file contents, or personal data, addressed somewhere outside the local machine and its configured endpoints.",
-  false: "The arguments stay local or carry only public/non-sensitive content.",
-};
 
-/** Screening outcome shared with the pre-execute wrapper. */
-export interface GuardrailVerdict {
-  readonly action: "allow" | "deny" | "ask";
-  readonly reason?: string;
-  readonly pMax: number;
-}
+export type GuardrailVerdict = PolicyDecision;
 
-/**
- * Build the one-round-trip guardrail request for a pending call.
- * @param toolName - the tool about to run.
- * @param args - the call's parsed arguments (JSON value).
- * @param signal - cancellation lifetime of the gate.
- * @returns the decision request carrying both Noul questions.
- */
-export function buildGuardrailRequest(
-  toolName: string,
-  args: unknown,
-  signal?: AbortSignal,
-): DecisionRequest {
+export function buildGuardrailRequest(toolName: string, args: unknown): JudgmentRequest {
   return {
-    // Tool arguments are lossless JSON by the tools contract; the adapter only
-    // serializes them, so this cast trusts that typed same-process boundary.
+    // ToolRuntime guarantees lossless JSON arguments at this boundary.
     state: { tool: toolName, arguments: args as DecisionState },
-    signal,
-    questions: {
-      harmful: { kind: "noul", instructions: HARMFUL_INSTRUCTIONS, criteria: HARMFUL_CRITERIA },
-      exposure: { kind: "noul", instructions: EXPOSURE_INSTRUCTIONS, criteria: EXPOSURE_CRITERIA },
-    },
+    questions: Object.fromEntries(
+      GUARDRAIL_RISKS.map((risk) => [
+        risk,
+        { kind: "binary" as const, instructions: INSTRUCTIONS[risk] },
+      ]),
+    ),
   };
 }
 
-/**
- * Map the two danger probabilities onto the screening verdict.
- * @param answers - adapter answers for `harmful` and `exposure`.
- * @param spec - resolved guardrail spec.
- * @returns the verdict; `ask` hands the middle band to the approval chain.
- * @throws on a missing or non-Noul answer (the adapter contract is closed).
- */
-export function decideGuardrail(
-  answers: Readonly<Record<string, DecisionAnswer>>,
-  spec: GuardrailSpec,
-): GuardrailVerdict {
-  const read = (key: string): number => {
-    const answer = answers[key];
-    if (answer === undefined || answer.kind !== "noul") {
-      throw new Error(`dsh-decision: guardrail expected a noul answer for "${key}".`);
-    }
-    return answer.probability;
-  };
-  const harmful = read("harmful");
-  const exposure = read("exposure");
-  const pMax = Math.max(harmful, exposure);
-  const driver = harmful >= exposure ? "harmful" : "exposure";
-  if (pMax >= spec.denyAt) {
-    return {
-      action: "deny",
-      reason: `decision-layer: ${driver} risk ${pMax.toFixed(2)} ≥ ${spec.denyAt}.`,
-      pMax,
-    };
-  }
-  if (pMax >= spec.allowBelow) {
-    return {
-      action: "ask",
-      reason: `decision-layer: ${driver} risk ${pMax.toFixed(2)} between ${spec.allowBelow} and ${spec.denyAt}; human review.`,
-      pMax,
-    };
-  }
-  return { action: "allow", pMax };
+export function decideGuardrail(result: JudgmentResult, spec: GuardrailSpec): GuardrailVerdict {
+  const probabilities = Object.fromEntries(
+    GUARDRAIL_RISKS.map((risk) => {
+      const answer = result.answers[risk];
+      if (answer?.kind !== "binary") {
+        throw new Error(`dsh-decision: guardrail expected a binary answer for "${risk}".`);
+      }
+      return [risk, answer.probability];
+    }),
+  ) as Record<GuardrailRisk, number>;
+  return evaluateGuardrailPolicy(probabilities, spec.risks);
 }

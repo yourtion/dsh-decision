@@ -166,4 +166,25 @@ describe("jev adapter wire mapping", () => {
       ).rejects.toBeInstanceOf(ProviderValidationError);
     }
   });
+
+  it("validates ordinal score bounds and numeric rubric keys", async () => {
+    for (const answer of [
+      { type: "score", score: 2, probabilities: { "0": 0.2, "1": 0.8 }, confidence: 0.8 },
+      { type: "score", score: 0.8, probabilities: { low: 0.2, high: 0.8 }, confidence: 0.8 },
+    ]) {
+      const { impl } = scripted([{ body: { answers: { severity: answer } } }]);
+      await expect(
+        createJevAdapter(spec, impl).evaluate({
+          state: "x",
+          questions: {
+            severity: {
+              kind: "score",
+              instructions: "Severity?",
+              levels: ["low", "high"],
+            },
+          },
+        }),
+      ).rejects.toBeInstanceOf(ProviderValidationError);
+    }
+  });
 });
