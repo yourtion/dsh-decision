@@ -8,12 +8,12 @@
 
 ## 四个切面
 
-| 切面 | dsh 事件 | 决策 | 默认 |
-|------|----------|------|------|
-| Guardrail | `tools/pre-execute` | 每次工具调用前问两个 Noul（harmful/exposure），风险 `≥denyAt` 拒绝、`<allowBelow` 放行、中间转人工审批 | **开** |
-| Routing | `agent/request` | Choice 选模型档位，confidence 低于阈值回退默认选型 | 关 |
-| Judge | `tools/post-execute` | 结果含 prompt injection / 暴露密件则 block 并换成纠正性反馈 | 关 |
-| 机审 | `approval/request` | P(allow) 高于阈值自动 `allowed-once`；uncalibrated adapter 永不自动放行 | 关 |
+| 切面      | dsh 事件             | 决策                                                                                                   | 默认   |
+| --------- | -------------------- | ------------------------------------------------------------------------------------------------------ | ------ |
+| Guardrail | `tools/pre-execute`  | 每次工具调用前问两个 Noul（harmful/exposure），风险 `≥denyAt` 拒绝、`<allowBelow` 放行、中间转人工审批 | **开** |
+| Routing   | `agent/request`      | Choice 选模型档位，confidence 低于阈值回退默认选型                                                     | 关     |
+| Judge     | `tools/post-execute` | 结果含 prompt injection / 暴露密件则 block 并换成纠正性反馈                                            | 关     |
+| 机审      | `approval/request`   | P(allow) 高于阈值自动 `allowed-once`；uncalibrated adapter 永不自动放行                                | 关     |
 
 所有切面默认 `mode: shadow`：照常调用决策模型并记录日志，但一律放行——先观察判断质量再切 `enforce`。
 
@@ -57,12 +57,12 @@ pnpm run fmt        # oxfmt --check
 - id: decision
   name: dsh-decision
   config:
-    provider: jev          # 选哪个已注册 adapter
-    mode: shadow           # shadow | enforce
+    provider: jev # 选哪个已注册 adapter
+    mode: shadow # shadow | enforce
     guardrail: { enabled: true, allowBelow: 0.2, denyAt: 0.7, onFailure: allow }
-    routing:   { enabled: false, confidenceFloor: 0.6, routes: [...] }   # provider/model 必须自己配
-    judge:     { enabled: false, blockAt: 0.75 }
-    approval:  { enabled: false, allowAt: 0.85, rejectBelow: 0.5 }
+    routing: { enabled: false, confidenceFloor: 0.6, routes: [...] } # provider/model 必须自己配
+    judge: { enabled: false, blockAt: 0.75 }
+    approval: { enabled: false, allowAt: 0.85, rejectBelow: 0.5 }
 - id: decision-jev
   name: dsh-decision-jev
   config:
@@ -79,9 +79,9 @@ pnpm run fmt        # oxfmt --check
 Noul/Choice/Score 三种问题原语），在自己的插件包里：
 
 ```ts
-export const inject = ['decision']
+export const inject = ["decision"];
 export function apply(ctx: Context): void {
-  ctx.effect(() => ctx.decision.registerAdapter({ id: 'my-model', calibrated: false, evaluate }))
+  ctx.effect(() => ctx.decision.registerAdapter({ id: "my-model", calibrated: false, evaluate }));
 }
 ```
 
