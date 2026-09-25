@@ -1,0 +1,37 @@
+# dsh-decision — decision layer as a profile patch over dsh-base.
+# Shadow mode by default: every seam calls Jev and logs its verdict without
+# enforcing. Switch mode to enforce only after watching shadow logs.
+- insert:
+    # Core: seams and thresholds; selects which registered adapter decides.
+    - id: decision
+      name: dsh-decision
+      config:
+        provider: jev
+        mode: shadow
+        guardrail:
+          enabled: true
+          # tools: [bash, run_command]          # empty screens every tool (0.5–1.5s per call)
+          # allowBelow: 0.2                     # risk below → allow
+          # denyAt: 0.7                         # risk at/above → deny; between → ask (human approval)
+          # onFailure: allow                    # adapter failure stance: allow | ask | deny
+        # routing:
+        #   enabled: true
+        #   confidenceFloor: 0.6
+        #   routes:                             # provider/model come from your deployment; never built in
+        #     - { key: cheap,    provider: your-provider, model: your-small-model }
+        #     - { key: flagship, provider: your-provider, model: your-big-model,  description: hard multi-file reasoning }
+        # judge:
+        #   enabled: true
+        #   blockAt: 0.75
+        # approval:
+        #   enabled: true
+        #   allowAt: 0.85
+        #   rejectBelow: 0.5
+    # Jev adapter: registers on ctx.decision once the core service exists.
+    - id: decision-jev
+      name: dsh-decision-jev
+      config:
+        # API key from the environment; never commit keys.
+        apiKeyEnv: JEV_API_KEY
+        # baseUrl: https://jev-ai.pro/api   # default; use https://api.typesafe.ai for TypeSafe native
+        # model: jev-latest                 # default

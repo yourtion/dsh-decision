@@ -1,0 +1,17 @@
+{
+  "name": "dsh-decision-monorepo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm run build && pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "lint": "oxlint packages/*/src profile",
+    "fmt": "oxfmt --check packages profile design.md README.md",
+    "fmt:fix": "oxfmt packages profile design.md README.md"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0"
+  }
+}
