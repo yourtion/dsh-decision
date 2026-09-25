@@ -4,7 +4,7 @@
 [Jev](https://jev-ai.pro)（TypeSafe System One）是第一个 provider；架构 provider 无关——后续同类模型
 新增一个 `packages/decision-<name>` 包即可，核心零改动。
 
-v1 设计见 [design.md](design.md)，v2 的审查结论与实施顺序见 [v2-plan.md](v2-plan.md)。
+v1 设计见 [docs/design.md](docs/design.md)，v2 的审查结论与实施顺序见 [docs/v2-plan.md](docs/v2-plan.md)。
 
 ## 四个切面
 
@@ -77,7 +77,7 @@ pnpm run fmt        # oxfmt --check
     # baseUrl: https://api.typesafe.ai   # 切 TypeSafe 官方端点
 ```
 
-关键安全取舍（详见 v2-plan.md）：adapter 调用失败时 guardrail 默认放行（可配 `ask`/`deny`）、
+关键安全取舍（详见 [docs/v2-plan.md](docs/v2-plan.md)）：adapter 调用失败时 guardrail 默认放行（可配 `ask`/`deny`）、
 审批失败按 `machine.uncertain` 委托人工或拒绝。Jev provider 当前没有 `provider + model + approval + policyVersion` 的自动放行资格，因此默认不能自动批准；发给外部 API 的 state 仍可能包含原始工具参数，脱敏属于后续阶段。上述风险阈值是实验值，不代表已校准。
 
 ## 写新 provider

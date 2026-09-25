@@ -7,8 +7,8 @@
     "typecheck": "pnpm run build && pnpm -r run typecheck",
     "test": "pnpm -r run test",
     "lint": "oxlint packages/*/src profile",
-    "fmt": "oxfmt --check packages profile design.md v2-plan.md README.md",
-    "fmt:fix": "oxfmt packages profile design.md v2-plan.md README.md"
+    "fmt": "oxfmt --check packages profile docs README.md",
+    "fmt:fix": "oxfmt packages profile docs README.md"
   },
   "devDependencies": {
     "oxfmt": "^0.70.0",
