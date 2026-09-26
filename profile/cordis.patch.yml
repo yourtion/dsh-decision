@@ -21,6 +21,12 @@
           # risks:                              # omitted → recalibrated built-ins (2026-09-26 eval)
           #   secretExposure: { reviewAt: 0.55, denyAt: 0.85 }
           #   destructive: { reviewAt: 0.45, denyAt: 0.55 }
+          #   scopeViolation: { enabled: false } # first-class disable: not asked, not judged
+          # customRisks:                        # user-defined dimensions, same aggregation rights
+          #   financialExposure:
+          #     instructions: "Could this tool call move money?"
+          #     reviewAt: 0.3
+          #     denyAt: 0.7                      # custom dimensions require explicit calibration
           # onFailure: allow                    # adapter failure stance: allow | ask | deny
         # routing:
         #   enabled: true

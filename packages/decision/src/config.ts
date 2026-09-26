@@ -6,10 +6,14 @@
  */
 
 import z from "@deepseek-ai/schemastery";
-import type { GuardrailRisk, RiskThresholds } from "./policy/risk.js";
-import { DEFAULT_GUARDRAIL_RISKS, GUARDRAIL_RISKS } from "./policy/risk.js";
 import type { OutboundPrivacy } from "./privacy/sanitizer.js";
 import { defaultAuditPath } from "./trace/trace.js";
+import {
+  resolveGuardrailRisks,
+  type GuardrailRisk,
+  type RiskDefinition,
+  type RiskEntryInput,
+} from "./policy/risk.js";
 
 /** Where decisions take effect. `shadow` observes and logs without enforcing. */
 export type DecisionMode = "shadow" | "enforce";
@@ -33,8 +37,14 @@ export interface GuardrailConfig {
   readonly allowBelow?: number;
   /** @deprecated Translated to every risk's denyAt when risks is omitted. */
   readonly denyAt?: number;
-  /** Experimental per-risk thresholds; not calibrated probabilities. */
-  readonly risks?: Partial<Record<GuardrailRisk, Partial<RiskThresholds>>>;
+  /** Overrides for the built-in dimensions: disable, reword, or re-threshold. */
+  readonly risks?: Readonly<Partial<Record<GuardrailRisk, RiskEntryInput>>>;
+  /**
+   * User-defined dimensions appended after the built-ins. Instructions and
+   * both thresholds are required; calibrate them before enforcing
+   * (`pnpm run eval`, docs/eval.md).
+   */
+  readonly customRisks?: Readonly<Record<string, RiskEntryInput>>;
   /** Stance when the adapter call fails. */
   readonly onFailure?: GuardrailFailure;
 }
@@ -126,13 +136,51 @@ export const Config: z<Config> = z.object({
     allowBelow: probability,
     denyAt: probability,
     risks: z.object({
-      destructive: z.object({ reviewAt: probability, denyAt: probability }),
-      secretExposure: z.object({ reviewAt: probability, denyAt: probability }),
-      privacyExposure: z.object({ reviewAt: probability, denyAt: probability }),
-      externalSideEffect: z.object({ reviewAt: probability, denyAt: probability }),
-      privilegeEscalation: z.object({ reviewAt: probability, denyAt: probability }),
-      scopeViolation: z.object({ reviewAt: probability, denyAt: probability }),
+      destructive: z.object({
+        enabled: z.boolean(),
+        instructions: z.string(),
+        reviewAt: probability,
+        denyAt: probability,
+      }),
+      secretExposure: z.object({
+        enabled: z.boolean(),
+        instructions: z.string(),
+        reviewAt: probability,
+        denyAt: probability,
+      }),
+      privacyExposure: z.object({
+        enabled: z.boolean(),
+        instructions: z.string(),
+        reviewAt: probability,
+        denyAt: probability,
+      }),
+      externalSideEffect: z.object({
+        enabled: z.boolean(),
+        instructions: z.string(),
+        reviewAt: probability,
+        denyAt: probability,
+      }),
+      privilegeEscalation: z.object({
+        enabled: z.boolean(),
+        instructions: z.string(),
+        reviewAt: probability,
+        denyAt: probability,
+      }),
+      scopeViolation: z.object({
+        enabled: z.boolean(),
+        instructions: z.string(),
+        reviewAt: probability,
+        denyAt: probability,
+      }),
     }),
+    customRisks: z.dict(
+      z.object({
+        enabled: z.boolean(),
+        instructions: z.string().required(),
+        reviewAt: probability,
+        denyAt: probability,
+      }),
+    ),
     onFailure: z.union(["allow", "ask", "deny"] as const),
   }),
   routing: z.object({
@@ -166,11 +214,10 @@ export const Config: z<Config> = z.object({
 export interface GuardrailSpec {
   readonly enabled: boolean;
   readonly tools: ReadonlySet<string>;
-  /** @deprecated v2 policy reads {@link risks}; kept for v1 adapter callers. */
-  readonly allowBelow?: number;
-  /** @deprecated v2 policy reads {@link risks}; kept for v1 adapter callers. */
-  readonly denyAt?: number;
-  readonly risks: Readonly<Record<GuardrailRisk, RiskThresholds>>;
+  /** Effective dimensions (built-ins minus disabled, then customs) in order. */
+  readonly risks: readonly RiskDefinition[];
+  /** Hash of the effective set: keys, thresholds, and question wording. */
+  readonly policyVersion: string;
   readonly onFailure: GuardrailFailure;
 }
 
@@ -235,44 +282,17 @@ export function resolveConfig(config: Config): ResolvedConfig {
   const enforcement = config.enforcement ?? config.mode ?? "shadow";
   const permission = config.permission ?? (config.approval?.enabled ? "machine" : "native");
   const guardrailRaw = config.guardrail ?? {};
-  const legacyThresholds =
-    guardrailRaw.allowBelow !== undefined || guardrailRaw.denyAt !== undefined;
-  if (legacyThresholds && guardrailRaw.risks !== undefined) {
-    throw new Error("dsh-decision: legacy guardrail thresholds cannot be combined with risks.");
-  }
-  const risks = Object.fromEntries(
-    GUARDRAIL_RISKS.map((risk) => [
-      risk,
-      {
-        reviewAt:
-          guardrailRaw.risks?.[risk]?.reviewAt ??
-          (legacyThresholds
-            ? (guardrailRaw.allowBelow ?? 0.2)
-            : DEFAULT_GUARDRAIL_RISKS[risk].reviewAt),
-        denyAt:
-          guardrailRaw.risks?.[risk]?.denyAt ??
-          (legacyThresholds ? (guardrailRaw.denyAt ?? 0.7) : DEFAULT_GUARDRAIL_RISKS[risk].denyAt),
-      },
-    ]),
-  ) as Record<GuardrailRisk, RiskThresholds>;
-  for (const risk of GUARDRAIL_RISKS) {
-    const thresholds = risks[risk];
-    if (
-      !Number.isFinite(thresholds.reviewAt) ||
-      !Number.isFinite(thresholds.denyAt) ||
-      thresholds.reviewAt < 0 ||
-      thresholds.denyAt > 1 ||
-      thresholds.reviewAt >= thresholds.denyAt
-    ) {
-      throw new Error(`dsh-decision: invalid guardrail thresholds for ${risk}.`);
-    }
-  }
+  const resolvedRisks = resolveGuardrailRisks({
+    allowBelow: guardrailRaw.allowBelow,
+    denyAt: guardrailRaw.denyAt,
+    risks: guardrailRaw.risks,
+    customRisks: guardrailRaw.customRisks,
+  });
   const guardrail: GuardrailSpec = {
     enabled: guardrailRaw.enabled ?? true,
     tools: new Set(guardrailRaw.tools ?? []),
-    allowBelow: guardrailRaw.allowBelow ?? 0.2,
-    denyAt: guardrailRaw.denyAt ?? 0.7,
-    risks,
+    risks: resolvedRisks.risks,
+    policyVersion: resolvedRisks.policyVersion,
     onFailure: guardrailRaw.onFailure ?? "allow",
   };
 

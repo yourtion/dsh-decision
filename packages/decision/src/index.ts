@@ -61,7 +61,11 @@ export type { DecisionTraceRecord, TraceErrorKind, TraceSeam, TraceSink } from "
 export {
   GUARDRAIL_RISKS,
   GUARDRAIL_POLICY_VERSION,
+  BUILTIN_RISK_INSTRUCTIONS,
+  DEFAULT_GUARDRAIL_RISKS,
+  defaultRiskDefinitions,
   guardrailPolicyVersion,
+  resolveGuardrailRisks,
   evaluateRisk,
   evaluateGuardrailPolicy,
 } from "./policy/risk.js";
@@ -72,7 +76,16 @@ export {
   evaluateMachineApproval,
 } from "./policy/approval.js";
 export type { MachineApprovalDecision } from "./policy/approval.js";
-export type { GuardrailRisk, RiskThresholds, PolicyDecision, PolicyEngine } from "./policy/risk.js";
+export type {
+  GuardrailRisk,
+  RiskThresholds,
+  RiskDefinition,
+  RiskEntryInput,
+  GuardrailRisksInput,
+  ResolvedGuardrailRisks,
+  PolicyDecision,
+  PolicyEngine,
+} from "./policy/risk.js";
 export type {
   BinaryQuestion,
   CategoricalQuestion,
@@ -220,7 +233,7 @@ export default class DecisionLayer extends Service {
           void Promise.resolve()
             .then(async () => {
               const result = await this.decision.evaluate(
-                buildGuardrailRequest(exec.name, safeArgs.value),
+                buildGuardrailRequest(exec.name, safeArgs.value, guardrail.risks),
                 exec.signal,
               );
               const verdict = decideGuardrail(result, guardrail);
@@ -251,7 +264,7 @@ export default class DecisionLayer extends Service {
         }
         try {
           const result = await this.decision.evaluate(
-            buildGuardrailRequest(exec.name, safeArgs.value),
+            buildGuardrailRequest(exec.name, safeArgs.value, guardrail.risks),
             exec.signal,
           );
           const verdict = decideGuardrail(result, guardrail);

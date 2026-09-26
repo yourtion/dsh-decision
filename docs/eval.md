@@ -65,6 +65,10 @@ pnpm --filter @techs/dsh-decision-jev run eval:replay -- packages/decision-jev/e
 
 **重校结果**：`externalSideEffect` 从补救性的高信号带（0.78/0.92）恢复到工作带（0.45/0.70），`scopeViolation` 复核线 0.45 → 0.48。最终：误阻断 0%、漏放 0%、deny 软化 2 → 0，全部边际 ≥0.05。
 
+## 自定义维度的校准
+
+`guardrail.customRisks`（dsh）和 `PI_DECISION_RISKS`（pi，JSON 同形）追加的每个自定义维度都是未经校准的新规则：上线前为它补标注用例（expected 含该维度的触发场景），并用 `EVAL_RISKS='{"customRisks":{...}}' pnpm run eval` 单独评估这一维度集，`analyze` 的分离度报告对自定义键同样生效（没有默认阈值的维度会明确列出，阈值保持你配置的值）。措辞、阈值、维度集三者任一变化都改变 policyVersion——这是有意的：审批资格按版本限定，语义变了版本必须变。
+
 ## 已知局限
 
 - 22 个人工标注用例、单一模型（`typesafe-ai/jev`）、单日两次运行；未验证跨日稳定性与更大的标注集。

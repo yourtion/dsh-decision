@@ -118,6 +118,14 @@ guardrail:
   # risks: # 省略时使用重校后的内置默认（2026-09-26 评估得出）
   #   secretExposure: { reviewAt: 0.55, denyAt: 0.85 }
   #   destructive: { reviewAt: 0.45, denyAt: 0.55 }
+  #   scopeViolation: { enabled: false } # 一等关闭：不发问、不判定、不出站
+  #   externalSideEffect: # 措辞覆盖（改动后必须整组重校，见 docs/eval.md）
+  #     instructions: "Does this tool call publish anything publicly?"
+  # customRisks: # 用户自定义维度，追加在内置之后；与内置同权参与聚合
+  #   financialExposure:
+  #     instructions: "Could this tool call move money or initiate irreversible financial transactions?"
+  #     reviewAt: 0.3
+  #     denyAt: 0.7
 routing: { enabled: false } # 启用时需自行配置可选 provider/model
 judge: { enabled: false, blockAt: 0.75 }
 machine: { uncertain: human } # human | deny

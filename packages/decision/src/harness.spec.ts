@@ -376,6 +376,55 @@ describe("DSH event seam integration", () => {
     }
   });
 
+  it("asks and enforces custom dimensions alongside the built-ins", async () => {
+    const seenKeys: string[][] = [];
+    const ctx = await layer(
+      {
+        mode: "enforce",
+        guardrail: {
+          risks: { scopeViolation: { enabled: false } },
+          customRisks: {
+            financialExposure: {
+              instructions: "Could this tool call move money?",
+              reviewAt: 0.3,
+              denyAt: 0.7,
+            },
+          },
+        },
+      },
+      undefined,
+      {
+        id: "jev",
+        model: "test-model",
+        capabilities: () => ({ binary: true, categorical: false, ordinal: false }),
+        evaluate: async (request) => {
+          seenKeys.push(Object.keys(request.questions));
+          const answers: Record<string, { kind: "binary"; probability: number }> = {};
+          for (const key of Object.keys(request.questions)) {
+            answers[key] = {
+              kind: "binary",
+              probability: key === "financialExposure" ? 0.9 : 0.01,
+            };
+          }
+          return { provider: "jev", model: "test-model", answers };
+        },
+      },
+    );
+    try {
+      const decision = await ctx.waterfall(
+        "tools/pre-execute",
+        { name: "bash", arguments: { command: "transfer funds" }, signal },
+        async () => ({ kind: "allow" }),
+      );
+      expect(decision.kind).toBe("deny");
+      expect(decision.kind === "deny" && decision.reason).toContain("financialExposure");
+      expect(seenKeys[0]).not.toContain("scopeViolation");
+      expect(seenKeys[0]).toContain("financialExposure");
+    } finally {
+      await ctx.fiber.dispose();
+    }
+  });
+
   it("redacts secrets from guardrail state before the provider sees it", async () => {
     const seen: unknown[] = [];
     const ctx = await layer({ mode: "enforce" }, undefined, {
@@ -452,7 +501,7 @@ describe("DSH event seam integration", () => {
         action: "deny",
         redactions: 1,
       });
-      expect(String(record.policyVersion)).toContain("guardrail-v2.0.0");
+      expect(String(record.policyVersion)).toContain("guardrail-v2.1.0");
       expect(JSON.stringify(record)).not.toContain("rm -rf");
       expect(JSON.stringify(record)).not.toContain("very-secret-token");
       await vi.waitFor(() => expect(existsSync(path)).toBe(true), { timeout: 5_000 });

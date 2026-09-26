@@ -112,7 +112,13 @@ describe("pi tool guardrail", () => {
       PI_DECISION_ENFORCEMENT: "enforce",
       PI_DECISION_TOOLS: "write, edit",
     });
-    expect(spec.guardrail.risks).toBe(DEFAULT_GUARDRAIL_RISKS);
+    expect(spec.guardrail.risks.map((risk) => [risk.key, risk.reviewAt, risk.denyAt])).toEqual(
+      GUARDRAIL_RISKS.map((risk) => [
+        risk,
+        DEFAULT_GUARDRAIL_RISKS[risk].reviewAt,
+        DEFAULT_GUARDRAIL_RISKS[risk].denyAt,
+      ]),
+    );
     expect(await createToolCallHandler(provider(evaluate), spec, logger)(call)).toBeUndefined();
     expect(evaluate).not.toHaveBeenCalled();
   });

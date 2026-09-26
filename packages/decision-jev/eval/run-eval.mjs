@@ -11,6 +11,7 @@
  *   node eval/run-eval.mjs --replay eval/results-<date>.json      # offline sweep
  *   node eval/run-eval.mjs --fixtures my-fixtures.json            # custom fixture set
  * Live runs pace requests (EVAL_DELAY_MS, default 400ms).
+ * EVAL_RISKS='{"customRisks":{...}}' evaluates a custom dimension set.
  *
  * The fixtures are a hand-labeled seed set, not a calibrated benchmark:
  * scores describe this set only and exist to make threshold drift visible.
@@ -21,16 +22,21 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
-  DEFAULT_GUARDRAIL_RISKS,
-  GUARDRAIL_RISKS,
   buildGuardrailRequest,
+  defaultRiskDefinitions,
   evaluateGuardrailPolicy,
+  resolveGuardrailRisks,
 } from "@techs/dsh-decision/kernel";
 import { createJevProvider } from "@techs/dsh-decision-jev/provider";
 import { resolveJevConfig } from "@techs/dsh-decision-jev/spec";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+/** Effective dimensions evaluated and stored; EVAL_RISKS JSON swaps the set. */
+const RISKS = process.env.EVAL_RISKS
+  ? resolveGuardrailRisks(JSON.parse(process.env.EVAL_RISKS)).risks
+  : defaultRiskDefinitions();
+const RISK_KEYS = RISKS.map((risk) => risk.key);
 const REPLAY = process.argv.includes("--replay");
 const replayPath = REPLAY ? process.argv[process.argv.indexOf("--replay") + 1] : undefined;
 
@@ -73,10 +79,10 @@ async function liveAnswers(fixtures, savePartial) {
   try {
     for (const [index, fixture] of fixtures.entries()) {
       if (index > 0) await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
-      const request = buildGuardrailRequest(fixture.tool, fixture.arguments);
+      const request = buildGuardrailRequest(fixture.tool, fixture.arguments, RISKS);
       const result = await withRetries(() => provider.evaluate(request));
       const probabilities = Object.fromEntries(
-        GUARDRAIL_RISKS.map((risk) => [risk, result.answers[risk].probability]),
+        RISK_KEYS.map((risk) => [risk, result.answers[risk].probability]),
       );
       rows.push({
         id: fixture.id,
@@ -100,18 +106,18 @@ async function replayAnswers(path) {
   return stored.rows;
 }
 
-function verdictOf(probabilities, thresholds) {
-  return evaluateGuardrailPolicy(probabilities, thresholds);
+function verdictOf(probabilities, risks) {
+  return evaluateGuardrailPolicy(probabilities, risks);
 }
 
-function confusion(rows, thresholds) {
+function confusion(rows, risks) {
   const counts = {
     allow: { allow: 0, review: 0, deny: 0 },
     review: { allow: 0, review: 0, deny: 0 },
     deny: { allow: 0, review: 0, deny: 0 },
   };
   for (const row of rows) {
-    counts[row.expected][verdictOf(row.probabilities, thresholds).action] += 1;
+    counts[row.expected][verdictOf(row.probabilities, risks).action] += 1;
   }
   const expectedAllow = counts.allow.allow + counts.allow.review + counts.allow.deny;
   const expectedDeny = counts.deny.allow + counts.deny.review + counts.deny.deny;
@@ -132,10 +138,8 @@ function sweep(rows) {
   for (const reviewAt of [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5]) {
     for (const denyAt of [0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]) {
       if (reviewAt >= denyAt) continue;
-      const thresholds = Object.fromEntries(
-        GUARDRAIL_RISKS.map((risk) => [risk, { reviewAt, denyAt }]),
-      );
-      const metrics = confusion(rows, thresholds);
+      const risks = RISKS.map((risk) => ({ ...risk, reviewAt, denyAt }));
+      const metrics = confusion(rows, risks);
       candidates.push({ reviewAt, denyAt, ...metrics });
     }
   }
@@ -153,7 +157,7 @@ function sweep(rows) {
 }
 
 function reportCurrent(rows) {
-  const current = confusion(rows, DEFAULT_GUARDRAIL_RISKS);
+  const current = confusion(rows, RISKS);
   console.log("\n== Current defaults (per-dimension) ==");
   console.log(
     `expected allow: ${current.totals.expectedAllow}, review: ${current.totals.expectedReview}, deny: ${current.totals.expectedDeny}`,
@@ -172,11 +176,11 @@ function reportCurrent(rows) {
   }
   console.log("\nmisjudged fixtures under defaults:");
   for (const row of rows) {
-    const actual = verdictOf(row.probabilities, DEFAULT_GUARDRAIL_RISKS).action;
+    const actual = verdictOf(row.probabilities, RISKS).action;
     if (actual !== row.expected) {
-      const top = GUARDRAIL_RISKS.map(
-        (risk) => `${risk}=${row.probabilities[risk].toFixed(2)}`,
-      ).join(" ");
+      const top = Object.keys(row.probabilities)
+        .map((risk) => `${risk}=${row.probabilities[risk].toFixed(2)}`)
+        .join(" ");
       console.log(`  ${row.id}: expected ${row.expected}, got ${actual} (${top})`);
     }
   }
@@ -198,7 +202,7 @@ const rows = REPLAY
   : await liveAnswers(fixtures, (partial) => void saveResults(partial, "-partial").catch(() => {}));
 
 reportCurrent(rows);
-console.log("\n== Uniform threshold Pareto frontier (all six risks share reviewAt/denyAt) ==");
+console.log("\n== Uniform threshold Pareto frontier (all risks share reviewAt/denyAt) ==");
 console.log("reviewAt denyAt  falseBlock  missDeny");
 for (const c of sweep(rows)) {
   console.log(

@@ -2,11 +2,22 @@
 export { buildGuardrailRequest, decideGuardrail } from "./seams/guardrail.js";
 export type { GuardrailVerdict } from "./seams/guardrail.js";
 export {
+  BUILTIN_RISK_INSTRUCTIONS,
   DEFAULT_GUARDRAIL_RISKS,
   GUARDRAIL_RISKS,
+  defaultRiskDefinitions,
   evaluateGuardrailPolicy,
+  guardrailPolicyVersion,
+  resolveGuardrailRisks,
 } from "./policy/risk.js";
-export type { GuardrailRisk, RiskThresholds } from "./policy/risk.js";
+export type {
+  GuardrailRisk,
+  RiskThresholds,
+  RiskDefinition,
+  RiskEntryInput,
+  GuardrailRisksInput,
+  ResolvedGuardrailRisks,
+} from "./policy/risk.js";
 export type { GuardrailSpec, GuardrailFailure, DecisionMode } from "./config.js";
 export type {
   JudgmentAnswer,

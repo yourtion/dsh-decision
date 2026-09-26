@@ -1,9 +1,11 @@
 import {
-  DEFAULT_GUARDRAIL_RISKS,
   defaultAuditPath,
+  resolveGuardrailRisks,
   type DecisionMode,
   type GuardrailFailure,
+  type GuardrailRisksInput,
   type GuardrailSpec,
+  type ResolvedGuardrailRisks,
   type OutboundPrivacy,
 } from "@techs/dsh-decision/kernel";
 import { resolveJevConfig, type JevSpec } from "@techs/dsh-decision-jev/spec";
@@ -61,6 +63,27 @@ function flag(value: string | undefined, name: string, fallback: boolean): boole
   throw new Error(`pi-decision: ${name} must be on or off.`);
 }
 
+/**
+ * Parse `PI_DECISION_RISKS` as the same JSON shape as the dsh guardrail risk
+ * config — `{"risks": {...}, "customRisks": {...}}` — to disable or reword
+ * built-in dimensions and append custom ones. Omitted env uses the shared
+ * defaults; invalid JSON or risk config fails loud at load.
+ */
+export function resolvePiRisks(env: NodeJS.ProcessEnv): ResolvedGuardrailRisks {
+  const raw = env.PI_DECISION_RISKS;
+  let input: GuardrailRisksInput;
+  if (raw === undefined || raw === "") {
+    input = {};
+  } else {
+    try {
+      input = JSON.parse(raw) as GuardrailRisksInput;
+    } catch (error) {
+      throw new Error("pi-decision: PI_DECISION_RISKS is not valid JSON.", { cause: error });
+    }
+  }
+  return resolveGuardrailRisks(input);
+}
+
 export function resolvePiGuardrailSpec(env: NodeJS.ProcessEnv): PiGuardrailSpec {
   const mode = choice(
     env.PI_DECISION_ENFORCEMENT,
@@ -80,14 +103,10 @@ export function resolvePiGuardrailSpec(env: NodeJS.ProcessEnv): PiGuardrailSpec 
       .map((name) => name.trim())
       .filter(Boolean),
   );
+  const { risks, policyVersion } = resolvePiRisks(env);
   return {
     mode,
-    guardrail: {
-      enabled: true,
-      tools,
-      risks: DEFAULT_GUARDRAIL_RISKS,
-      onFailure,
-    },
+    guardrail: { enabled: true, tools, risks, policyVersion, onFailure },
     outbound: choice(env.PI_DECISION_OUTBOUND, ["redact", "raw"], "PI_DECISION_OUTBOUND", "redact"),
     audit: {
       enabled: flag(env.PI_DECISION_AUDIT, "PI_DECISION_AUDIT", true),

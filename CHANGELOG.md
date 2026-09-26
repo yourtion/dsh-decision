@@ -8,6 +8,18 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- User-defined guardrail dimensions: `guardrail.customRisks` (dsh) and
+  `PI_DECISION_RISKS` (pi, same JSON shape) append custom binary risk
+  dimensions to the built-in six — same aggregation rights, packed into the
+  same single Jev request. Built-ins can now be disabled per dimension
+  (`enabled: false`: not asked, not judged, not sent) and reworded
+  (`instructions` override). Custom dimensions require explicit
+  instructions and thresholds; reserved keys and inverted pairs fail loud.
+- The guardrail policy version now hashes the whole effective dimension set
+  — keys, thresholds, and question wording (guardrail-v2.1.0). Rewording a
+  question changes judgments (see the externalSideEffect case study), so
+  wording is part of policy identity; approval qualifications scoped to an
+  older version no longer match.
 - Outbound sanitizer: tool arguments, judged results, routing hints, and
   approval reasons are masked for credential-shaped content before leaving
   the host (`privacy.outbound: redact`, default; `raw` restores the previous

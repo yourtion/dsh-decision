@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveConfig } from "./config.js";
 import { DecisionRuntime } from "./service.js";
 import type { JudgmentProvider } from "./judgment.js";
-import { GUARDRAIL_RISKS, evaluateGuardrailPolicy } from "./policy/risk.js";
+import { evaluateGuardrailPolicy } from "./policy/risk.js";
 
 const binaryRequest = {
   state: { tool: "bash" },
@@ -69,16 +69,16 @@ describe("provider runtime contract", () => {
   it("produces identical policy results for identical validated judgments", () => {
     const risks = resolveConfig({}).guardrail.risks;
     const judgments = Object.fromEntries(
-      GUARDRAIL_RISKS.map((risk) => [risk, risk === "privacyExposure" ? 0.4 : 0]),
-    ) as Record<(typeof GUARDRAIL_RISKS)[number], number>;
+      risks.map((risk) => [risk.key, risk.key === "privacyExposure" ? 0.4 : 0]),
+    );
     const first = evaluateGuardrailPolicy(judgments, risks);
     expect(evaluateGuardrailPolicy({ ...judgments }, risks)).toEqual(first);
-    expect(first.policyVersion).toMatch(/^guardrail-v2\.0\.0:[0-9a-f]{64}$/);
+    expect(first.policyVersion).toMatch(/^guardrail-v2\.1\.0:[0-9a-f]{64}$/);
     expect(
-      evaluateGuardrailPolicy(judgments, {
-        ...risks,
-        privacyExposure: { ...risks.privacyExposure, reviewAt: 0.3 },
-      }).policyVersion,
+      evaluateGuardrailPolicy(
+        judgments,
+        risks.map((risk) => (risk.key === "privacyExposure" ? { ...risk, reviewAt: 0.3 } : risk)),
+      ).policyVersion,
     ).not.toBe(first.policyVersion);
   });
 });

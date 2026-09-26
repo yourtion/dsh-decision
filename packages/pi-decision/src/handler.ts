@@ -50,7 +50,7 @@ export function createToolCallHandler(
 
     const evaluate = async () => {
       const result = await provider.evaluate(
-        buildGuardrailRequest(call.toolName, safeInput.value),
+        buildGuardrailRequest(call.toolName, safeInput.value, spec.guardrail.risks),
         signal,
       );
       return { result, verdict: decideGuardrail(result, spec.guardrail) };
