@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_GUARDRAIL_RISKS,
   GUARDRAIL_RISKS,
+  type DecisionTraceRecord,
   type GuardrailFailure,
   type JudgmentProvider,
   type JudgmentResult,
@@ -51,7 +52,7 @@ describe("pi tool guardrail", () => {
 
   it.each([
     [{ destructive: 0.9 }, "destructive"],
-    [{ privacyExposure: 0.4 }, "Human review required"],
+    [{ privacyExposure: 0.7 }, "Human review required"],
   ] as const)("blocks risk %s", async (risks, reason) => {
     const handler = createToolCallHandler(
       provider(async () => result(risks)),
@@ -114,5 +115,61 @@ describe("pi tool guardrail", () => {
     expect(spec.guardrail.risks).toBe(DEFAULT_GUARDRAIL_RISKS);
     expect(await createToolCallHandler(provider(evaluate), spec, logger)(call)).toBeUndefined();
     expect(evaluate).not.toHaveBeenCalled();
+  });
+
+  it("redacts secrets in tool input before the provider sees them", async () => {
+    const evaluate = vi.fn<JudgmentProvider["evaluate"]>(async () => result());
+    const secretCall = {
+      toolName: "bash",
+      input: { command: "echo ok", headers: { authorization: "Bearer abcdef1234567890" } },
+    };
+    const handler = createToolCallHandler(
+      provider(evaluate),
+      resolvePiGuardrailSpec({ PI_DECISION_ENFORCEMENT: "enforce" }),
+      logger,
+    );
+    await handler(secretCall, new AbortController().signal);
+    const [request] = evaluate.mock.calls[0]!;
+    expect(JSON.stringify(request.state)).not.toContain("abcdef1234567890");
+    expect(secretCall.input.headers.authorization).toBe("Bearer abcdef1234567890");
+  });
+
+  it("keeps raw input under outbound=raw", async () => {
+    const evaluate = vi.fn<JudgmentProvider["evaluate"]>(async () => result());
+    const secretCall = { toolName: "bash", input: { api_key: "abcdefgh12345678" } };
+    const handler = createToolCallHandler(
+      provider(evaluate),
+      resolvePiGuardrailSpec({ PI_DECISION_ENFORCEMENT: "enforce", PI_DECISION_OUTBOUND: "raw" }),
+      logger,
+    );
+    await handler(secretCall);
+    expect(evaluate.mock.calls[0]![0].state).toEqual({ tool: "bash", arguments: secretCall.input });
+  });
+
+  it("writes a sanitized audit record per verdict", async () => {
+    const records: DecisionTraceRecord[] = [];
+    const handler = createToolCallHandler(
+      provider(async () => result({ destructive: 0.9 })),
+      resolvePiGuardrailSpec({ PI_DECISION_ENFORCEMENT: "enforce" }),
+      logger,
+      { record: (r) => records.push(r) },
+    );
+    const outcome = await handler({
+      toolName: "bash",
+      input: { command: "rm -rf /tmp/x", api_key: "abcdefgh12345678" },
+    });
+    expect(outcome).toMatchObject({ block: true });
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      host: "pi",
+      seam: "guardrail",
+      mode: "enforce",
+      tool: "bash",
+      action: "deny",
+    });
+    expect(records[0]!.judgments).toMatchObject({ destructive: 0.9 });
+    expect(records[0]!.redactions).toBe(1);
+    expect(JSON.stringify(records)).not.toContain("abcdefgh12345678");
+    expect(JSON.stringify(records)).not.toContain("rm -rf");
   });
 });

@@ -1,7 +1,11 @@
+import { existsSync } from "node:fs";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Context } from "@deepseek-ai/cordis";
 import type { Agent } from "@deepseek-ai/dsh-agent";
 import type { UserMessage } from "@deepseek-ai/dsh-llm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import DecisionLayer from "./index.js";
 import type { DecisionAdapter, DecisionAnswer } from "./types.js";
 import type { JudgmentProvider } from "./judgment.js";
@@ -116,7 +120,7 @@ describe("DSH event seam integration", () => {
               answers: Object.fromEntries(
                 GUARDRAIL_RISKS.map((risk) => [
                   risk,
-                  { kind: "binary", probability: risk === "destructive" ? 0.4 : 0.01 },
+                  { kind: "binary", probability: risk === "destructive" ? 0.5 : 0.01 },
                 ]),
               ),
             };
@@ -367,6 +371,95 @@ describe("DSH event seam integration", () => {
         async () => ({ kind: "accept" }),
       );
       expect(judged.kind).toBe("block");
+    } finally {
+      await ctx.fiber.dispose();
+    }
+  });
+
+  it("redacts secrets from guardrail state before the provider sees it", async () => {
+    const seen: unknown[] = [];
+    const ctx = await layer({ mode: "enforce" }, undefined, {
+      id: "jev",
+      model: "test-model",
+      capabilities: () => ({ binary: true, categorical: false, ordinal: false }),
+      evaluate: async (request) => {
+        seen.push(request.state);
+        return {
+          provider: "jev",
+          model: "test-model",
+          answers: Object.fromEntries(
+            GUARDRAIL_RISKS.map((risk) => [risk, { kind: "binary", probability: 0.01 }]),
+          ),
+        };
+      },
+    });
+    try {
+      await ctx.waterfall(
+        "tools/pre-execute",
+        {
+          name: "bash",
+          arguments: { command: "deploy", api_key: "abcdefgh12345678" },
+          signal,
+        },
+        async () => ({ kind: "allow" }),
+      );
+      expect(JSON.stringify(seen[0])).not.toContain("abcdefgh12345678");
+      expect(seen[0]).toEqual({
+        tool: "bash",
+        arguments: { command: "deploy", api_key: "[REDACTED:key]" },
+      });
+    } finally {
+      await ctx.fiber.dispose();
+    }
+  });
+
+  it("audits enforce verdicts to the JSONL trace and the decision/trace event", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "decision-harness-"));
+    const path = join(dir, "audit.jsonl");
+    const events: unknown[] = [];
+    const ctx = await layer({ mode: "enforce", audit: { path } }, undefined, {
+      id: "jev",
+      model: "test-model",
+      capabilities: () => ({ binary: true, categorical: false, ordinal: false }),
+      evaluate: async () => ({
+        provider: "jev",
+        model: "test-model",
+        answers: Object.fromEntries(
+          GUARDRAIL_RISKS.map((risk) => [
+            risk,
+            { kind: "binary", probability: risk === "destructive" ? 0.95 : 0.01 },
+          ]),
+        ),
+      }),
+    });
+    try {
+      ctx.on("decision/trace", (record) => {
+        events.push(record);
+      });
+      const decision = await ctx.waterfall(
+        "tools/pre-execute",
+        { name: "bash", arguments: { command: "rm -rf /", token: "very-secret-token-1" }, signal },
+        async () => ({ kind: "allow" }),
+      );
+      expect(decision.kind).toBe("deny");
+      await vi.waitFor(() => expect(events.length).toBe(1), { timeout: 5_000 });
+      const record = events[0] as Record<string, unknown>;
+      expect(record).toMatchObject({
+        host: "dsh",
+        seam: "guardrail",
+        mode: "enforce",
+        tool: "bash",
+        action: "deny",
+        redactions: 1,
+      });
+      expect(String(record.policyVersion)).toContain("guardrail-v2.0.0");
+      expect(JSON.stringify(record)).not.toContain("rm -rf");
+      expect(JSON.stringify(record)).not.toContain("very-secret-token");
+      await vi.waitFor(() => expect(existsSync(path)).toBe(true), { timeout: 5_000 });
+      const lines = (await readFile(path, "utf8")).trim().split("\n");
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0]!).action).toBe("deny");
+      await rm(dir, { recursive: true, force: true });
     } finally {
       await ctx.fiber.dispose();
     }

@@ -1,14 +1,19 @@
 import {
   DEFAULT_GUARDRAIL_RISKS,
+  defaultAuditPath,
   type DecisionMode,
   type GuardrailFailure,
   type GuardrailSpec,
+  type OutboundPrivacy,
 } from "@techs/dsh-decision/kernel";
 import { resolveJevConfig, type JevSpec } from "@techs/dsh-decision-jev/spec";
 
 export interface PiGuardrailSpec {
   readonly mode: DecisionMode;
   readonly guardrail: GuardrailSpec;
+  readonly outbound: OutboundPrivacy;
+  /** Audit-trace switch and file path. */
+  readonly audit: { readonly enabled: boolean; readonly path: string };
 }
 
 /** Select the wire-compatible Vercel gateway unless direct Jev is requested. */
@@ -49,6 +54,13 @@ function choice<T extends string>(
   throw new Error(`pi-decision: ${name} must be one of ${allowed.join(", ")}.`);
 }
 
+function flag(value: string | undefined, name: string, fallback: boolean): boolean {
+  if (value === undefined || value === "") return fallback;
+  if (value === "on" || value === "1") return true;
+  if (value === "off" || value === "0") return false;
+  throw new Error(`pi-decision: ${name} must be on or off.`);
+}
+
 export function resolvePiGuardrailSpec(env: NodeJS.ProcessEnv): PiGuardrailSpec {
   const mode = choice(
     env.PI_DECISION_ENFORCEMENT,
@@ -73,10 +85,13 @@ export function resolvePiGuardrailSpec(env: NodeJS.ProcessEnv): PiGuardrailSpec 
     guardrail: {
       enabled: true,
       tools,
-      allowBelow: 0.2,
-      denyAt: 0.7,
       risks: DEFAULT_GUARDRAIL_RISKS,
       onFailure,
+    },
+    outbound: choice(env.PI_DECISION_OUTBOUND, ["redact", "raw"], "PI_DECISION_OUTBOUND", "redact"),
+    audit: {
+      enabled: flag(env.PI_DECISION_AUDIT, "PI_DECISION_AUDIT", true),
+      path: env.PI_DECISION_AUDIT_PATH ?? defaultAuditPath("pi"),
     },
   };
 }

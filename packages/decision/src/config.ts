@@ -8,6 +8,8 @@
 import z from "@deepseek-ai/schemastery";
 import type { GuardrailRisk, RiskThresholds } from "./policy/risk.js";
 import { DEFAULT_GUARDRAIL_RISKS, GUARDRAIL_RISKS } from "./policy/risk.js";
+import type { OutboundPrivacy } from "./privacy/sanitizer.js";
+import { defaultAuditPath } from "./trace/trace.js";
 
 /** Where decisions take effect. `shadow` observes and logs without enforcing. */
 export type DecisionMode = "shadow" | "enforce";
@@ -73,6 +75,20 @@ export interface ApprovalConfig {
   readonly requireCalibrated?: boolean;
 }
 
+/** Outbound data policy for judgment requests leaving the host. */
+export interface PrivacyConfig {
+  /** `redact` masks detected secrets in tool arguments, results, and hints. */
+  readonly outbound?: OutboundPrivacy;
+}
+
+/** Audit-trace settings for the sanitized decision record. */
+export interface AuditConfig {
+  /** Write one JSONL record per judgment outcome; default on. */
+  readonly enabled?: boolean;
+  /** Audit file path; defaults under the XDG state directory. */
+  readonly path?: string;
+}
+
 /** Raw plugin config; every field optional, defaults live in {@link resolveConfig}. */
 export interface Config {
   /** Active adapter id; must match an adapter registered on `ctx.decision` (e.g. by dsh-decision-jev). */
@@ -84,6 +100,8 @@ export interface Config {
   readonly machine?: MachineConfig;
   /** @deprecated Use `enforcement`. */
   readonly mode?: DecisionMode;
+  readonly privacy?: PrivacyConfig;
+  readonly audit?: AuditConfig;
   readonly guardrail?: GuardrailConfig;
   readonly routing?: RoutingConfig;
   readonly judge?: JudgeConfig;
@@ -100,6 +118,8 @@ export const Config: z<Config> = z.object({
   enforcement: z.union(["shadow", "enforce"] as const),
   machine: z.object({ uncertain: z.union(["human", "deny"] as const) }),
   mode: z.union(["shadow", "enforce"] as const),
+  privacy: z.object({ outbound: z.union(["redact", "raw"] as const) }),
+  audit: z.object({ enabled: z.boolean(), path: z.string() }),
   guardrail: z.object({
     enabled: z.boolean(),
     tools: z.array(z.string()),
@@ -146,8 +166,10 @@ export const Config: z<Config> = z.object({
 export interface GuardrailSpec {
   readonly enabled: boolean;
   readonly tools: ReadonlySet<string>;
-  readonly allowBelow: number;
-  readonly denyAt: number;
+  /** @deprecated v2 policy reads {@link risks}; kept for v1 adapter callers. */
+  readonly allowBelow?: number;
+  /** @deprecated v2 policy reads {@link risks}; kept for v1 adapter callers. */
+  readonly denyAt?: number;
   readonly risks: Readonly<Record<GuardrailRisk, RiskThresholds>>;
   readonly onFailure: GuardrailFailure;
 }
@@ -183,6 +205,8 @@ export interface ResolvedConfig {
   readonly machine: { readonly uncertain: UncertainPolicy };
   /** @deprecated Alias for `enforcement` during migration. */
   readonly mode: DecisionMode;
+  readonly privacy: { readonly outbound: OutboundPrivacy };
+  readonly audit: { readonly enabled: boolean; readonly path: string };
   readonly guardrail: GuardrailSpec;
   readonly routing: RoutingSpec;
   readonly judge: JudgeSpec;
@@ -277,15 +301,12 @@ export function resolveConfig(config: Config): ResolvedConfig {
     throw new Error("dsh-decision: machine permission requires approval.enabled.");
   }
 
-  for (const [seam, spec] of [
-    ["guardrail", { low: guardrail.allowBelow, high: guardrail.denyAt }],
-    ["approval", { low: approval.rejectBelow, high: approval.allowAt }],
-  ] as const) {
-    if (spec.low >= spec.high) {
-      throw new Error(
-        `dsh-decision: ${seam} thresholds are inverted (lower bound ${spec.low} >= upper bound ${spec.high}).`,
-      );
-    }
+  // Guardrail inversion is enforced per risk above; approval is the only
+  // seam whose pair still needs a cross-field check.
+  if (approval.rejectBelow >= approval.allowAt) {
+    throw new Error(
+      `dsh-decision: approval thresholds are inverted (lower bound ${approval.rejectBelow} >= upper bound ${approval.allowAt}).`,
+    );
   }
   if (routing.enabled && routing.routes.length === 0) {
     throw new Error("dsh-decision: routing is enabled but routing.routes is empty.");
@@ -298,6 +319,11 @@ export function resolveConfig(config: Config): ResolvedConfig {
     enforcement,
     machine: { uncertain: config.machine?.uncertain ?? "human" },
     mode: enforcement,
+    privacy: { outbound: config.privacy?.outbound ?? "redact" },
+    audit: {
+      enabled: config.audit?.enabled ?? true,
+      path: config.audit?.path ?? defaultAuditPath("dsh"),
+    },
     guardrail,
     routing,
     judge,

@@ -20,6 +20,15 @@ import { buildMachineApprovalRequest, decideMachineApproval } from "./seams/appr
 import { approvalPolicyVersion, trustedForAutoAllow } from "./policy/approval.js";
 import { StepContextStore, taskHint } from "./context/step-context.js";
 import { isDecisionEscalation, markDecisionEscalation } from "./context/provenance.js";
+import { redactText, redactValue } from "./privacy/sanitizer.js";
+import {
+  JsonlTraceSink,
+  NULL_TRACE_SINK,
+  traceErrorKind,
+  type DecisionTraceRecord,
+  type TraceSeam,
+  type TraceSink,
+} from "./trace/trace.js";
 import type { DecisionAdapter } from "./types.js";
 import type { JudgmentProvider } from "./judgment.js";
 
@@ -33,11 +42,22 @@ export type {
   GuardrailFailure,
   ResolvedConfig,
   RouteConfig,
+  PrivacyConfig,
+  AuditConfig,
 } from "./config.js";
 export { DecisionRuntime } from "./service.js";
 export { DecisionError, ProviderValidationError } from "./types.js";
 export { validateAnswer } from "./validation.js";
 export { validateJudgmentResult } from "./judgment-validation.js";
+export { redactText, redactValue } from "./privacy/sanitizer.js";
+export type { OutboundPrivacy, RedactionResult } from "./privacy/sanitizer.js";
+export {
+  JsonlTraceSink,
+  NULL_TRACE_SINK,
+  defaultAuditPath,
+  traceErrorKind,
+} from "./trace/trace.js";
+export type { DecisionTraceRecord, TraceErrorKind, TraceSeam, TraceSink } from "./trace/trace.js";
 export {
   GUARDRAIL_RISKS,
   GUARDRAIL_POLICY_VERSION,
@@ -89,6 +109,19 @@ declare module "@deepseek-ai/cordis" {
     /** Decision-layer adapter registry; register future decision models here. */
     decision: DecisionLayer;
   }
+  interface Events {
+    /** Sanitized outcome of one judgment, mirrored from the audit trace. */
+    "decision/trace"(this: Context, record: DecisionTraceRecord): void | Promise<void>;
+  }
+}
+
+/** Binary-answer probabilities by question key, for the audit record. */
+function binaryJudgments(result: import("./judgment.js").JudgmentResult): Record<string, number> {
+  const judgments: Record<string, number> = {};
+  for (const [key, answer] of Object.entries(result.answers)) {
+    if (answer.kind === "binary") judgments[key] = answer.probability;
+  }
+  return judgments;
 }
 
 /**
@@ -103,11 +136,20 @@ export default class DecisionLayer extends Service {
   readonly decision: DecisionRuntime;
   readonly #spec: ResolvedConfig;
   readonly #stepContexts = new StepContextStore();
+  readonly #trace: TraceSink;
 
   constructor(ctx: Context, config: Config) {
     super(ctx, "decision");
     const spec = (this.#spec = resolveConfig(config));
     this.decision = new DecisionRuntime(spec);
+    this.#trace = spec.audit.enabled
+      ? new JsonlTraceSink(spec.audit.path, (message) => this.ctx.logger.warn(message))
+      : NULL_TRACE_SINK;
+    if (spec.enforcement === "enforce") {
+      this.ctx.logger.warn(
+        "decision: enforce is experimental — guardrail thresholds are not calibrated; review the audit trace before trusting verdicts.",
+      );
+    }
     if (spec.guardrail.enabled) this.#installGuardrail();
     if (spec.routing.enabled) this.#installRouting();
     if (spec.judge.enabled) this.#installJudge();
@@ -121,6 +163,34 @@ export default class DecisionLayer extends Service {
 
   registerProvider(provider: JudgmentProvider): () => void {
     return this.decision.registerProvider(provider);
+  }
+
+  /** Apply the outbound privacy policy to a deep-frozen judgment state value. */
+  #redact<T>(value: T): { value: T; count: number } {
+    if (this.#spec.privacy.outbound === "raw") return { value, count: 0 };
+    return redactValue(value);
+  }
+
+  /** Apply the outbound privacy policy to a string (hints, reasons, results). */
+  #redactString(value: string): { value: string; count: number } {
+    if (this.#spec.privacy.outbound === "raw") return { value, count: 0 };
+    return redactText(value);
+  }
+
+  /** Persist and publish one sanitized audit record; failures stay contained. */
+  #audit(
+    seam: TraceSeam,
+    fields: Omit<DecisionTraceRecord, "time" | "host" | "seam" | "mode">,
+  ): void {
+    const record: DecisionTraceRecord = {
+      time: new Date().toISOString(),
+      host: "dsh",
+      seam,
+      mode: this.#spec.enforcement,
+      ...fields,
+    };
+    this.#trace.record(record);
+    void this.ctx.parallel("decision/trace", record);
   }
 
   /** Enforce or observe: map a guardrail verdict onto a pre-execute decision. */
@@ -143,11 +213,14 @@ export default class DecisionLayer extends Service {
       async (exec: ToolExecution, next): Promise<PreToolDecision> => {
         if (guardrail.tools.size > 0 && !guardrail.tools.has(exec.name)) return next();
         if (exec.signal.aborted) return next();
+        const safeArgs = this.#redact(exec.arguments);
+        const sessionId = exec.agent?.id;
+        const base = { tool: exec.name, ...(sessionId === undefined ? {} : { sessionId }) };
         if (spec.mode === "shadow") {
           void Promise.resolve()
             .then(async () => {
               const result = await this.decision.evaluate(
-                buildGuardrailRequest(exec.name, exec.arguments),
+                buildGuardrailRequest(exec.name, safeArgs.value),
                 exec.signal,
               );
               const verdict = decideGuardrail(result, guardrail);
@@ -156,22 +229,42 @@ export default class DecisionLayer extends Service {
                   `decision shadow: ${exec.name} would ${verdict.action} (${verdict.driver} ${verdict.probability?.toFixed(2)}).`,
                 );
               }
+              this.#audit("guardrail", {
+                ...base,
+                action: verdict.action,
+                policyVersion: verdict.policyVersion,
+                judgments: binaryJudgments(result),
+                ...(safeArgs.count === 0 ? {} : { redactions: safeArgs.count }),
+              });
             })
-            .catch((error: unknown) =>
+            .catch((error: unknown) => {
               this.ctx.logger.warn(
                 `decision shadow: guardrail evaluation failed: ${String(error)}.`,
-              ),
-            );
+              );
+              this.#audit("guardrail", {
+                ...base,
+                action: "error",
+                errorKind: traceErrorKind(error),
+              });
+            });
           return next();
         }
         try {
           const result = await this.decision.evaluate(
-            buildGuardrailRequest(exec.name, exec.arguments),
+            buildGuardrailRequest(exec.name, safeArgs.value),
             exec.signal,
           );
           const verdict = decideGuardrail(result, guardrail);
+          this.#audit("guardrail", {
+            ...base,
+            action: verdict.action,
+            policyVersion: verdict.policyVersion,
+            judgments: binaryJudgments(result),
+            ...(safeArgs.count === 0 ? {} : { redactions: safeArgs.count }),
+          });
           return this.#applyGuardrail(verdict.action, verdict.reason, spec.mode, next);
         } catch (error) {
+          this.#audit("guardrail", { ...base, action: "error", errorKind: traceErrorKind(error) });
           return this.#guardrailFailure(error, guardrail.onFailure, exec.name, next);
         }
       },
@@ -214,11 +307,13 @@ export default class DecisionLayer extends Service {
       if (signal.aborted) return fallback;
       const hint = taskHint(this.#stepContexts.take(agent, turn, step)?.messages ?? []);
       if (hint === undefined) return fallback;
+      const safeHint = this.#redactString(hint);
+      const base = { sessionId: agent.id };
       if (spec.mode === "shadow") {
         void Promise.resolve()
           .then(async () => {
             const result = await this.decision.evaluate(
-              buildRoutingRequest(hint, routing.routes),
+              buildRoutingRequest(safeHint.value, routing.routes),
               signal,
             );
             const routed = decideRouting(result, routing, fallback);
@@ -227,23 +322,35 @@ export default class DecisionLayer extends Service {
                 `decision shadow: would route to ${routed.provider}/${routed.model}.`,
               );
             }
+            this.#audit("routing", {
+              ...base,
+              action: routed === fallback ? "fallback" : `route:${routed.provider}/${routed.model}`,
+              ...(safeHint.count === 0 ? {} : { redactions: safeHint.count }),
+            });
           })
-          .catch((error: unknown) =>
-            this.ctx.logger.warn(`decision shadow: routing evaluation failed: ${String(error)}.`),
-          );
+          .catch((error: unknown) => {
+            this.ctx.logger.warn(`decision shadow: routing evaluation failed: ${String(error)}.`);
+            this.#audit("routing", { ...base, action: "error", errorKind: traceErrorKind(error) });
+          });
         return fallback;
       }
       try {
         const result = await this.decision.evaluate(
-          buildRoutingRequest(hint, routing.routes),
+          buildRoutingRequest(safeHint.value, routing.routes),
           signal,
         );
         const routed = decideRouting(result, routing, fallback);
+        this.#audit("routing", {
+          ...base,
+          action: routed === fallback ? "fallback" : `route:${routed.provider}/${routed.model}`,
+          ...(safeHint.count === 0 ? {} : { redactions: safeHint.count }),
+        });
         return routed;
       } catch (error) {
         this.ctx.logger.warn(
           `decision: routing evaluation failed, keeping default: ${String(error)}.`,
         );
+        this.#audit("routing", { ...base, action: "error", errorKind: traceErrorKind(error) });
         return fallback;
       }
     });
@@ -257,11 +364,14 @@ export default class DecisionLayer extends Service {
       async (exec: ToolExecution, result: Readonly<ToolExecutionResult>, next) => {
         if (judge.tools.size > 0 && !judge.tools.has(exec.name)) return next();
         if (result.content.length === 0) return next();
+        const safeResult = this.#redact(result);
+        const sessionId = exec.agent?.id;
+        const base = { tool: exec.name, ...(sessionId === undefined ? {} : { sessionId }) };
         if (spec.mode === "shadow") {
           void Promise.resolve()
             .then(async () => {
               const judgment = await this.decision.evaluate(
-                buildJudgeRequest(exec.name, result),
+                buildJudgeRequest(exec.name, safeResult.value),
                 exec.signal,
               );
               const verdict = decideJudge(judgment, judge);
@@ -270,24 +380,38 @@ export default class DecisionLayer extends Service {
                   `decision shadow: ${exec.name} result would be blocked (${verdict.pMax.toFixed(2)}).`,
                 );
               }
+              this.#audit("judge", {
+                ...base,
+                action: verdict.action,
+                judgments: binaryJudgments(judgment),
+                ...(safeResult.count === 0 ? {} : { redactions: safeResult.count }),
+              });
             })
-            .catch((error: unknown) =>
-              this.ctx.logger.warn(`decision shadow: judge evaluation failed: ${String(error)}.`),
-            );
+            .catch((error: unknown) => {
+              this.ctx.logger.warn(`decision shadow: judge evaluation failed: ${String(error)}.`);
+              this.#audit("judge", { ...base, action: "error", errorKind: traceErrorKind(error) });
+            });
           return next();
         }
         try {
           const judgment = await this.decision.evaluate(
-            buildJudgeRequest(exec.name, result),
+            buildJudgeRequest(exec.name, safeResult.value),
             exec.signal,
           );
           const verdict = decideJudge(judgment, judge);
+          this.#audit("judge", {
+            ...base,
+            action: verdict.action,
+            judgments: binaryJudgments(judgment),
+            ...(safeResult.count === 0 ? {} : { redactions: safeResult.count }),
+          });
           if (verdict.action === "accept") return next();
           return { kind: "block", feedback: judgeFeedback(verdict.reason) };
         } catch (error) {
           this.ctx.logger.warn(
             `decision: judge evaluation failed for ${exec.name}, accepting: ${String(error)}.`,
           );
+          this.#audit("judge", { ...base, action: "error", errorKind: traceErrorKind(error) });
           return next();
         }
       },
@@ -307,11 +431,13 @@ export default class DecisionLayer extends Service {
             ? "rejected"
             : next();
         }
+        const safeReason = this.#redactString(req.reason ?? "");
+        const base = { tool: req.toolName, sessionId: req.agent.id };
         if (spec.enforcement === "shadow") {
           void Promise.resolve()
             .then(async () => {
               const result = await this.decision.evaluate(
-                buildMachineApprovalRequest(req.toolName, req.reason),
+                buildMachineApprovalRequest(req.toolName, safeReason.value),
                 req.signal,
               );
               const qualified = trustedForAutoAllow(
@@ -327,18 +453,30 @@ export default class DecisionLayer extends Service {
                 spec.machine.uncertain,
               );
               this.ctx.logger.info(`decision shadow: ${req.toolName} would ${verdict.action}.`);
+              this.#audit("approval", {
+                ...base,
+                action: verdict.action,
+                policyVersion,
+                judgments: binaryJudgments(result),
+              });
             })
-            .catch((error: unknown) =>
+            .catch((error: unknown) => {
               this.ctx.logger.warn(
                 `decision shadow: approval evaluation failed: ${String(error)}.`,
-              ),
-            );
+              );
+              this.#audit("approval", {
+                ...base,
+                action: "error",
+                policyVersion,
+                errorKind: traceErrorKind(error),
+              });
+            });
           return next();
         }
         let action: "allow" | "review" | "deny";
         try {
           const result = await this.decision.evaluate(
-            buildMachineApprovalRequest(req.toolName, req.reason),
+            buildMachineApprovalRequest(req.toolName, safeReason.value),
             req.signal,
           );
           const qualified = trustedForAutoAllow(
@@ -353,11 +491,23 @@ export default class DecisionLayer extends Service {
             qualified,
             spec.machine.uncertain,
           ).action;
+          this.#audit("approval", {
+            ...base,
+            action,
+            policyVersion,
+            judgments: binaryJudgments(result),
+          });
         } catch (error) {
           this.ctx.logger.warn(
             `decision: approval evaluation failed for ${req.toolName}: ${String(error)}.`,
           );
           action = "review";
+          this.#audit("approval", {
+            ...base,
+            action: "error",
+            policyVersion,
+            errorKind: traceErrorKind(error),
+          });
         }
         if (action === "allow") return "allowed-once";
         if (action === "deny" || spec.machine.uncertain === "deny") return "rejected";
