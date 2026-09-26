@@ -1,17 +1,31 @@
 # @techs/dsh-decision-jev
 
-Jev（TypeSafe System One wire）的判断 provider：注册到 [@techs/dsh-decision](https://www.npmjs.com/package/@techs/dsh-decision) 的 `ctx.decision`，为 guardrail / routing / judge / approval 切面提供概率判断。薄 HTTP 客户端实现，运行时依赖只有 schemastery（+核心包）；key 缺失在插件加载时即报错（fail loud）。
+English | [简体中文](https://github.com/yourtion/dsh-decision/blob/main/packages/decision-jev/README.zh-CN.md)
 
-| 配置        | 默认                     | 说明                              |
-| ----------- | ------------------------ | --------------------------------- |
-| `baseUrl`   | `https://jev-ai.pro/api` | 请求发往 `{baseUrl}/v1/systemone` |
-| `apiKey`    | 无                       | 与 `apiKeyEnv` 二选一             |
-| `apiKeyEnv` | 无                       | 从该环境变量读取 key              |
-| `model`     | `jev-latest`             | 直连 Jev 用                       |
-| `timeoutMs` | `8000`                   | 单次请求超时                      |
+A Jev (TypeSafe System One wire) judgment provider for [@techs/dsh-decision](https://www.npmjs.com/package/@techs/dsh-decision). It registers with `ctx.decision` and supplies probability judgments to the guardrail, routing, result judge, and approval integration points. The HTTP client is small; a missing key fails when the plugin loads.
 
-Vercel AI Gateway 接入：`baseUrl: https://ai-gateway.vercel.sh/typesafe` + `model: typesafe-ai/jev`，key 从 `AI_GATEWAY_API_KEY` 读取。`./provider` 与 `./spec` 子路径不依赖 Cordis，可被 pi 等宿主直接使用。本包不附带自动放行资格（calibration 为空），机器审批不会自动 `allowed-once`。
+Jev is one implementation of the core's `JudgmentProvider` contract. Other structured probability models can use their own adapters; they do not need to implement this package's wire format.
 
-- [接入与验证](https://github.com/yourtion/dsh-decision/blob/main/docs/integration.md)
-- [阈值评估方法与调参案例](https://github.com/yourtion/dsh-decision/blob/main/docs/eval.md)（评估工具在仓库 `packages/decision-jev/eval/`，不随包发布）
-- [仓库根 README](https://github.com/yourtion/dsh-decision#readme)
+| Setting     | Default                  | Purpose                                 |
+| ----------- | ------------------------ | --------------------------------------- |
+| `baseUrl`   | `https://jev-ai.pro/api` | Requests go to `{baseUrl}/v1/systemone` |
+| `apiKey`    | None                     | Literal key; alternative to `apiKeyEnv` |
+| `apiKeyEnv` | None                     | Environment variable containing the key |
+| `model`     | `jev-latest`             | Model for direct Jev access             |
+| `timeoutMs` | `8000`                   | Per-request timeout                     |
+
+For Vercel AI Gateway, use `baseUrl: https://ai-gateway.vercel.sh/typesafe`, `model: typesafe-ai/jev`, and `AI_GATEWAY_API_KEY`. The `./provider` and `./spec` exports do not depend on Cordis and can be used by hosts such as Pi. This adapter has no qualification for automatic approval, so machine approval will not automatically return `allowed-once`.
+
+Install both dsh bundles:
+
+```sh
+export AI_GATEWAY_API_KEY=your_gateway_key
+dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev
+dsh web
+```
+
+This bundle's patch configures the Gateway URL, model, and environment variable; the decision layer's bundle sets `shadow`. To use direct Jev access, override the `decision-jev` configuration in the profile's `cordis.patch.yml`.
+
+- [Integration and verification](https://github.com/yourtion/dsh-decision/blob/main/docs/integration.md) (Chinese)
+- [Threshold evaluation and calibration case study](https://github.com/yourtion/dsh-decision/blob/main/docs/eval.md) (Chinese; the evaluation tools are in `packages/decision-jev/eval/` and are not published)
+- [Repository README](https://github.com/yourtion/dsh-decision#readme)

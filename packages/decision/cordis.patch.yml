@@ -1,3 +1,7 @@
 - insert:
     - id: decision
       name: "@techs/dsh-decision"
+      config:
+        provider: jev
+        enforcement: shadow
+        permission: native

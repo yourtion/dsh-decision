@@ -14,7 +14,7 @@ export default function piDecision(pi: ExtensionAPI): void {
   const spec = resolvePiGuardrailSpec(process.env);
   if (spec.mode === "enforce") {
     log(
-      "pi-decision: enforce is experimental — guardrail thresholds are not calibrated; review the audit trace before trusting verdicts.",
+      "pi-decision: enforce is experimental — thresholds were calibrated on a small seed set; review the audit trace before trusting verdicts.",
     );
   }
   const trace = spec.audit.enabled ? new JsonlTraceSink(spec.audit.path, log) : NULL_TRACE_SINK;

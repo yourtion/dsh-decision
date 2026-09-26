@@ -1,6 +1,6 @@
 # 接入与验证
 
-本仓库把同一套 Jev 判断用于两个宿主：pi 监听 `tool_call`，dsh 使用自身的 waterfall 扩展点。pi 目前只判断**调用工具前**的风险；dsh 另有路由、结果 judge、机器审批切面。两边的默认执行模式都是 `shadow`。
+本仓库提供宿主无关的概率判断接口与策略，Jev 是首个 provider 实现。示例配置把 Jev 用在两个宿主：pi 监听 `tool_call`，dsh 使用自身的 waterfall 扩展点。pi 目前只判断**调用工具前**的风险；dsh 另有路由、结果 judge、机器审批切面。两边的默认执行模式都是 `shadow`。其他能返回结构化概率判断的模型可通过各自 adapter 接入 dsh 核心，不要求兼容 Jev 的 API；pi 扩展当前仍直接绑定 Jev adapter。
 
 示例命令要求 Node.js 22.19+ 和 pnpm。若本机没有独立的 `pnpm` 命令，可用 `npm exec --yes --package=pnpm@10.17.1 -- pnpm <命令>` 执行相同操作；这也是本机检查时使用的 pnpm 版本。
 
@@ -141,13 +141,19 @@ model: jev-latest
 
 ### 现有 Web profile
 
-独立的 `decision` profile 使用 headless bundle；已有的 dsh Web 进程使用 `web` profile，两者需要分别加载插件。从仓库根目录安装本地包：
+独立的 `decision` profile 使用 headless bundle；已有的 dsh Web 进程使用 `web` profile，两者需要分别加载插件。发布版可以直接安装：
+
+```sh
+dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev
+```
+
+若从仓库调试，可从根目录改用本地包：
 
 ```sh
 dsh plugin --profile web add "file:$(pwd)/packages/decision" "file:$(pwd)/packages/decision-jev"
 ```
 
-再把 [示例 patch](../profile/cordis.patch.yml) 中的 `decision` 和 `decision-jev` 两项并入 `~/.dsh/profiles/web/cordis.patch.yml`，保留原有配置，重启 Web 进程。Web profile 使用的 `AI_GATEWAY_API_KEY` 必须对启动 dsh 的进程可见；本机将其放在权限为 600 的 `~/.dsh/.env`。只安装包而没有启用 patch 时，Web 中不会加载 decision。
+两个包从 0.1.1 起各自声明 `dsh.bundle`；dsh 安装时会将决策层和 Jev adapter 的 patch 加入 profile，无需复制示例 patch。包内 patch 默认使用 Gateway、`AI_GATEWAY_API_KEY`、`shadow` 和原生权限模式。key 必须对启动 dsh 的进程可见；本机将其放在权限为 600 的 `~/.dsh/.env`。安装后重启 Web 进程。要启用机器审批、路由等配置，再参考[示例 patch](../profile/cordis.patch.yml) 在 `~/.dsh/profiles/web/cordis.patch.yml` 中覆盖相应插件行。
 
 ### 验证范围（2026-09-26）
 
@@ -184,9 +190,9 @@ live 模式对 `fixtures.json` 里的人工标注用例（良性/破坏性/外�
 
 ## 开发与分发
 
-`packages/decision` 提供不引入 Cordis/Schemastery 运行时依赖的 `./kernel` 子路径，`packages/decision-jev` 提供 `./provider` 和 `./spec` 子路径，pi 扩展只在类型位置导入 pi 的 `ExtensionAPI`。本地 `pi -e` 和 `pi install ./packages/pi-decision` 依赖 pnpm workspace 链接；npm 发布用 `pnpm -r publish --access public`，`workspace:` 版本会按依赖拓扑顺序自动替换为实际版本（发布顺序 decision → decision-jev → pi-decision，已经 dry run 验证）。发布后 `pi install @techs/pi-decision` 和 dsh profile 的版本号依赖不再依赖本地仓库。
+`packages/decision` 提供不引入 Cordis/Schemastery 运行时依赖的 `./kernel` 子路径，`packages/decision-jev` 提供 `./provider` 和 `./spec` 子路径，pi 扩展只在类型位置导入 pi 的 `ExtensionAPI`。本地 `pi -e` 和 `pi install ./packages/pi-decision` 依赖 pnpm workspace 链接；npm 发布用 `pnpm -r publish --access public`，`workspace:` 版本会按依赖拓扑顺序自动替换为实际版本（发布顺序 decision → decision-jev → pi-decision）。发布后使用 `pi install npm:@techs/pi-decision` 或 `dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev`，不依赖本地仓库。发布前应分别用 npm tarball 在干净的 pi 和 dsh profile 中验证安装。
 
-新 Jev 类 provider 可实现 `@techs/dsh-decision` 的 `JudgmentProvider` 并注册到 `ctx.decision`：
+接入其他概率判断模型时，实现 `@techs/dsh-decision` 的 `JudgmentProvider`，把该模型的请求与响应映射为具名的 `JudgmentRequest` / `JudgmentResult`，声明支持的 binary、categorical、ordinal 问题类型，并注册到 `ctx.decision`：
 
 ```ts
 export const inject = ["decision"];
@@ -195,4 +201,6 @@ export function apply(ctx: Context): void {
 }
 ```
 
-旧的 `DecisionAdapter` 仍可通过 `registerAdapter()` 注册，但它的 `calibrated` 布尔值不授予 v2 自动审批资格。发往外部 API 的 state 默认经本地脱敏（见[隐私与审计](#隐私与审计)），未识别的私密内容仍可能发出；风险阈值也尚未校准，可用[评估工作台](#阈值评估)跟踪误判率。
+在 dsh profile 中安装新 provider 插件，并把 `decision.config.provider` 设为它注册的 `id`；所启用切面需要的问题类型必须由它支持。是否使用 Jev 的 TypeSafe System One wire 格式只影响 adapter 实现，不影响核心策略。现有 pi 包的入口直接调用 `createJevProvider()`，所以不能只改环境变量就切换到其他模型；要给 pi 增加对应 adapter 的创建与选择逻辑。
+
+旧的 `DecisionAdapter` 仍可通过 `registerAdapter()` 注册，但它的 `calibrated` 布尔值不授予 v2 自动审批资格。发往外部 API 的 state 默认经本地脱敏（见[隐私与审计](#隐私与审计)），未识别的私密内容仍可能发出。内置风险阈值只在 Jev 的 22 个种子用例上初步校准；换模型后要用[评估工作台](#阈值评估)重新标定，在 `shadow` 下观察实际误判率，再考虑 `enforce`。

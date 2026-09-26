@@ -1,3 +1,7 @@
 - insert:
     - id: decision-jev
       name: "@techs/dsh-decision-jev"
+      config:
+        apiKeyEnv: AI_GATEWAY_API_KEY
+        baseUrl: https://ai-gateway.vercel.sh/typesafe
+        model: typesafe-ai/jev

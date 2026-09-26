@@ -1,8 +1,10 @@
 # @techs/dsh-decision
 
-dsh 的决策层内核：宿主无关的 typed judgment（Binary / Categorical / Ordinal）、版本化的确定性 Policy，以及 dsh waterfall 的四个切面——工具 guardrail（`tools/pre-execute`）、模型路由（`agent/request`）、结果 judge（`tools/post-execute`）、机器审批（`approval/request`）。
+English | [简体中文](https://github.com/yourtion/dsh-decision/blob/main/packages/decision/README.zh-CN.md)
 
-作为 Cordis 插件加载后以 `ctx.decision` 服务暴露 provider 注册面：
+The decision layer for DeepSeek Harness (dsh): host-neutral typed judgments (binary, categorical, and ordinal), a versioned deterministic policy, and four dsh integration points: tool guardrail (`tools/pre-execute`), model routing (`agent/request`), result judging (`tools/post-execute`), and machine approval (`approval/request`).
+
+As a Cordis plugin, it exposes `ctx.decision` for judgment provider registration:
 
 ```ts
 export const inject = ["decision"];
@@ -12,9 +14,21 @@ export function apply(ctx: Context): void {
 }
 ```
 
-判断 provider 由独立插件包提供（首个是 [@techs/dsh-decision-jev](https://www.npmjs.com/package/@techs/dsh-decision-jev)）；本包不内置任何 provider、路由表或凭证。`./kernel` 子路径不引入 Cordis/Schemastery 的运行时依赖，供 pi 等其他宿主复用。默认 `shadow`（观察记录、不改变行为）；出站状态默认本地脱敏；每次判定写 sanitized 审计记录。`enforce` 为实验特性。
+Providers are separate packages; [@techs/dsh-decision-jev](https://www.npmjs.com/package/@techs/dsh-decision-jev) is the first implementation. Any model that can provide structured probability judgments can be integrated through a `JudgmentProvider` adapter, even if it uses a different API protocol. The adapter declares its supported question types, registers with `ctx.decision`, and is selected by `decision.config.provider`. A new model needs its own threshold evaluation; Jev's calibration does not transfer automatically.
 
-- [设计文档](https://github.com/yourtion/dsh-decision/blob/main/docs/design.md) / [v2 计划](https://github.com/yourtion/dsh-decision/blob/main/docs/v2-plan.md)
-- [接入与验证](https://github.com/yourtion/dsh-decision/blob/main/docs/integration.md)
-- [阈值评估方法](https://github.com/yourtion/dsh-decision/blob/main/docs/eval.md)
-- [仓库根 README](https://github.com/yourtion/dsh-decision#readme)
+This package includes no provider, route table, or credentials. Its `./kernel` export has no Cordis or Schemastery runtime dependency and is shared with Pi. The default `shadow` mode observes without changing behavior. Outbound state is redacted for recognizable secret patterns, and each judgment writes a sanitized audit record. `enforce` is experimental.
+
+Install it with the Jev adapter into an existing dsh profile (requires a Vercel AI Gateway key):
+
+```sh
+export AI_GATEWAY_API_KEY=your_gateway_key
+dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev
+dsh web
+```
+
+Each package declares a `dsh.bundle`, so installation adds both configuration layers. The defaults observe tool risk and retain dsh's native permission mode.
+
+- [Design and v2 plan](https://github.com/yourtion/dsh-decision/blob/main/docs/design.md) (Chinese)
+- [Integration and verification](https://github.com/yourtion/dsh-decision/blob/main/docs/integration.md) (Chinese)
+- [Threshold evaluation](https://github.com/yourtion/dsh-decision/blob/main/docs/eval.md) (Chinese)
+- [Repository README](https://github.com/yourtion/dsh-decision#readme)

@@ -6,6 +6,22 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- dsh bundle manifests and Gateway-ready patches for direct `dsh plugin add`
+  installation of the decision layer and Jev adapter.
+- npm discovery metadata, published-package quick starts, and ready-to-review
+  community announcement drafts for the dsh and pi ecosystems.
+- English repository and npm package READMEs, linked Chinese translations, and
+  CI, npm version, and license badges on the repository README.
+- Provider-neutral positioning across the READMEs and community drafts, with
+  Jev described as the first adapter and Pi's current Jev binding made explicit.
+
+### Changed
+
+- The experimental enforce warning now describes the small seed-set calibration
+  accurately instead of saying no calibration exists.
+
 ## [0.1.0] - 2026-09-26
 
 ### Added

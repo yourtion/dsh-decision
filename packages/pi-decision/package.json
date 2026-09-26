@@ -1,13 +1,24 @@
 {
   "name": "@techs/pi-decision",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Jev-backed tool guardrail for pi",
   "keywords": [
+    "guardrail",
+    "jev",
+    "pi-extension",
     "pi-package"
   ],
+  "homepage": "https://github.com/yourtion/dsh-decision#readme",
+  "bugs": "https://github.com/yourtion/dsh-decision/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourtion/dsh-decision.git",
+    "directory": "packages/pi-decision"
+  },
   "files": [
     "src",
-    "lib"
+    "lib",
+    "README.zh-CN.md"
   ],
   "type": "module",
   "main": "lib/index.js",

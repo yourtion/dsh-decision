@@ -5,6 +5,8 @@
 把"概率型决策模型"（TypeSafe Jev 及后续同类）接入 dsh 作为决策层。jev 只是第一个 adapter；
 核心是一个 provider 无关的 typed-judgment 服务，四个 dsh waterfall 切面消费它。
 
+当前实现以 `JudgmentProvider` 为正式接入口：provider 声明支持的 binary / categorical / ordinal 问题类型，返回经校验的结构化概率结果，并通过 `ctx.decision.registerProvider()` 注册。不同 API 协议可以各自实现 adapter；不要求兼容 Jev wire。启用某个切面时，provider 必须支持该切面所问的问题类型。pi 包目前复用中立风险策略，但其扩展入口仍固定创建 Jev provider；其他判断模型还需单独完成 pi 接入。
+
 ## 架构
 
 ```

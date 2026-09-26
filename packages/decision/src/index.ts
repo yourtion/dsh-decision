@@ -160,7 +160,7 @@ export default class DecisionLayer extends Service {
       : NULL_TRACE_SINK;
     if (spec.enforcement === "enforce") {
       this.ctx.logger.warn(
-        "decision: enforce is experimental — guardrail thresholds are not calibrated; review the audit trace before trusting verdicts.",
+        "decision: enforce is experimental — thresholds were calibrated on a small seed set; review the audit trace before trusting verdicts.",
       );
     }
     if (spec.guardrail.enabled) this.#installGuardrail();

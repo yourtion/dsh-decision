@@ -1,10 +1,24 @@
 {
   "name": "@techs/dsh-decision-jev",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Jev (TypeSafe System One) adapter for the dsh decision layer",
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "guardrail",
+    "jev"
+  ],
+  "homepage": "https://github.com/yourtion/dsh-decision#readme",
+  "bugs": "https://github.com/yourtion/dsh-decision/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourtion/dsh-decision.git",
+    "directory": "packages/decision-jev"
+  },
   "files": [
     "lib",
-    "cordis.patch.yml"
+    "cordis.patch.yml",
+    "README.zh-CN.md"
   ],
   "type": "module",
   "main": "lib/index.js",
@@ -52,5 +66,10 @@
   },
   "engines": {
     "node": ">=22.19"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   }
 }
