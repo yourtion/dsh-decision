@@ -8,10 +8,12 @@
     "test": "pnpm -r run test",
     "lint": "oxlint packages/*/src profile",
     "fmt": "oxfmt --check packages profile docs README.md",
-    "fmt:fix": "oxfmt packages profile docs README.md"
+    "fmt:fix": "oxfmt packages profile docs README.md",
+    "eval": "pnpm --filter @techs/dsh-decision-jev run eval"
   },
   "devDependencies": {
     "oxfmt": "^0.70.0",
     "oxlint": "^1.85.0"
-  }
+  },
+  "packageManager": "pnpm@10.17.1"
 }
