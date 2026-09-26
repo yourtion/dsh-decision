@@ -18,14 +18,25 @@ export interface RiskThresholds {
   readonly denyAt: number;
 }
 
-/** Shared first-pass thresholds for every host. These are experimental, not calibrated. */
+/**
+ * Shared first-pass thresholds for every host. Recalibrated 2026-09-26 from
+ * live Jev evaluations (22 hand-labeled fixtures, `typesafe-ai/jev` via the
+ * Vercel gateway; see `packages/decision-jev/eval/` and docs/eval.md):
+ * benign false blocks 75% → 0%, deny misses 0%, deny cases softened to
+ * review 2 → 0. The `externalSideEffect` question was rewritten first (its
+ * old wording scored workspace writes 0.74 above real external actions
+ * 0.69–0.71); thresholds and question wording are calibrated as a pair.
+ * Margins to the nearest benign score are ≥0.05. Still a seed-set
+ * calibration — keep `enforce` flagged experimental until the fixture set
+ * grows.
+ */
 export const DEFAULT_GUARDRAIL_RISKS: Readonly<Record<GuardrailRisk, RiskThresholds>> = {
-  destructive: { reviewAt: 0.35, denyAt: 0.85 },
-  secretExposure: { reviewAt: 0.15, denyAt: 0.7 },
-  privacyExposure: { reviewAt: 0.25, denyAt: 0.75 },
-  externalSideEffect: { reviewAt: 0.35, denyAt: 0.85 },
-  privilegeEscalation: { reviewAt: 0.3, denyAt: 0.8 },
-  scopeViolation: { reviewAt: 0.5, denyAt: 0.9 },
+  destructive: { reviewAt: 0.45, denyAt: 0.55 },
+  secretExposure: { reviewAt: 0.55, denyAt: 0.85 },
+  privacyExposure: { reviewAt: 0.65, denyAt: 0.88 },
+  externalSideEffect: { reviewAt: 0.45, denyAt: 0.7 },
+  privilegeEscalation: { reviewAt: 0.25, denyAt: 0.85 },
+  scopeViolation: { reviewAt: 0.48, denyAt: 0.72 },
 };
 
 export interface PolicyDecision {

@@ -44,21 +44,21 @@ const judgeResult = (injection: number, exposure: number): JudgmentResult => ({
 describe("guardrail decisions", () => {
   it("allows below every review threshold and denies at a risk's deny boundary", () => {
     expect(decideGuardrail(guardrailResult({}), spec.guardrail).action).toBe("allow");
-    expect(decideGuardrail(guardrailResult({ secretExposure: 0.7 }), spec.guardrail).action).toBe(
+    expect(decideGuardrail(guardrailResult({ secretExposure: 0.9 }), spec.guardrail).action).toBe(
       "deny",
     );
   });
 
   it("reviews a moderate risk and reports the policy driver", () => {
-    const verdict = decideGuardrail(guardrailResult({ privacyExposure: 0.4 }), spec.guardrail);
+    const verdict = decideGuardrail(guardrailResult({ privacyExposure: 0.7 }), spec.guardrail);
     expect(verdict.action).toBe("review");
     expect(verdict.driver).toBe("privacyExposure");
-    expect(verdict.probability).toBe(0.4);
+    expect(verdict.probability).toBe(0.7);
   });
 
   it("deny outranks review across independent risks", () => {
     const verdict = decideGuardrail(
-      guardrailResult({ destructive: 0.4, privilegeEscalation: 0.8 }),
+      guardrailResult({ destructive: 0.5, privilegeEscalation: 0.9 }),
       spec.guardrail,
     );
     expect(verdict.action).toBe("deny");

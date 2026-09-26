@@ -19,8 +19,8 @@ import {
 } from "@techs/dsh-decision/kernel";
 import type { JevSpec } from "./spec.js";
 
-/** Retry once on these statuses with linear backoff, per the API reference. */
-const RETRYABLE_STATUS = new Set([429, 529]);
+/** Retry once on these statuses with linear backoff; 502/503 are gateway transients. */
+const RETRYABLE_STATUS = new Set([429, 502, 503, 529]);
 const RETRY_DELAY_MS = 500;
 
 /** Wire question shape: `type` + `instructions` (+ `criteria`). */
