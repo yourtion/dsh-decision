@@ -1,0 +1,42 @@
+{
+  "name": "@techs/pi-decision",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Jev-backed tool guardrail for pi",
+  "keywords": [
+    "pi-package"
+  ],
+  "files": [
+    "src",
+    "lib"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@techs/dsh-decision": "workspace:~",
+    "@techs/dsh-decision-jev": "workspace:~"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.87.1",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 # @techs/dsh-decision 技术方案
 
-> 本文记录 v1 现状。v2 目标、修正约束和实施顺序见 [v2-plan.md](v2-plan.md)。
+> 本文保留最初的 v1 设计，供追溯使用；其中的两维 guardrail、旧校准布尔值等不代表当前实现。实际接入和验证结果见 [integration.md](integration.md)，v2 实施状态见 [v2-plan.md](v2-plan.md)。
 
 把"概率型决策模型"（TypeSafe Jev 及后续同类）接入 dsh 作为决策层。jev 只是第一个 adapter；
 核心是一个 provider 无关的 typed-judgment 服务，四个 dsh waterfall 切面消费它。

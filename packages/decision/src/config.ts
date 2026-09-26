@@ -7,7 +7,7 @@
 
 import z from "@deepseek-ai/schemastery";
 import type { GuardrailRisk, RiskThresholds } from "./policy/risk.js";
-import { GUARDRAIL_RISKS } from "./policy/risk.js";
+import { DEFAULT_GUARDRAIL_RISKS, GUARDRAIL_RISKS } from "./policy/risk.js";
 
 /** Where decisions take effect. `shadow` observes and logs without enforcing. */
 export type DecisionMode = "shadow" | "enforce";
@@ -211,14 +211,6 @@ export function resolveConfig(config: Config): ResolvedConfig {
   const enforcement = config.enforcement ?? config.mode ?? "shadow";
   const permission = config.permission ?? (config.approval?.enabled ? "machine" : "native");
   const guardrailRaw = config.guardrail ?? {};
-  const defaults: Readonly<Record<GuardrailRisk, RiskThresholds>> = {
-    destructive: { reviewAt: 0.35, denyAt: 0.85 },
-    secretExposure: { reviewAt: 0.15, denyAt: 0.7 },
-    privacyExposure: { reviewAt: 0.25, denyAt: 0.75 },
-    externalSideEffect: { reviewAt: 0.35, denyAt: 0.85 },
-    privilegeEscalation: { reviewAt: 0.3, denyAt: 0.8 },
-    scopeViolation: { reviewAt: 0.5, denyAt: 0.9 },
-  };
   const legacyThresholds =
     guardrailRaw.allowBelow !== undefined || guardrailRaw.denyAt !== undefined;
   if (legacyThresholds && guardrailRaw.risks !== undefined) {
@@ -230,10 +222,12 @@ export function resolveConfig(config: Config): ResolvedConfig {
       {
         reviewAt:
           guardrailRaw.risks?.[risk]?.reviewAt ??
-          (legacyThresholds ? (guardrailRaw.allowBelow ?? 0.2) : defaults[risk].reviewAt),
+          (legacyThresholds
+            ? (guardrailRaw.allowBelow ?? 0.2)
+            : DEFAULT_GUARDRAIL_RISKS[risk].reviewAt),
         denyAt:
           guardrailRaw.risks?.[risk]?.denyAt ??
-          (legacyThresholds ? (guardrailRaw.denyAt ?? 0.7) : defaults[risk].denyAt),
+          (legacyThresholds ? (guardrailRaw.denyAt ?? 0.7) : DEFAULT_GUARDRAIL_RISKS[risk].denyAt),
       },
     ]),
   ) as Record<GuardrailRisk, RiskThresholds>;

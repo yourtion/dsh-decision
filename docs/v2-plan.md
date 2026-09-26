@@ -2,7 +2,7 @@
 
 ## 结论
 
-采用 `State → Judgments → deterministic Policy → Action` 作为 v2 目标。当前四个 seam 已经具备一次请求提交多个问题的能力，但 Guardrail、Judge 与 Approval 仍各自直接用概率阈值决定行为；Routing 还从尚未提交的 Session 中反查输入。分阶段迁移是合理的。
+采用 `State → Judgments → deterministic Policy → Action` 作为 v2 目标。当前四个 seam 已通过统一 JudgmentRuntime 调用 provider；Guardrail 与 Machine Approval 已使用版本化纯 Policy，Routing 改为读取当前 step 最终接纳的消息。Judge 与 Routing 的判断维度和策略仍沿用 v1，后续继续扩展。
 
 以下约束修正原提案中容易被误解的部分：
 
@@ -24,7 +24,7 @@
 - Cordis `ctx.decision` 服务公开 `registerAdapter()`，让 Jev 和其他 provider 能实际注册。
 - 集成测试覆盖真实 Cordis/DSH 事件链，尤其是接纳消息、审批来源和 shadow 行为。
 
-当前进度：前五项已落地并有 Cordis waterfall 测试；测试直接驱动 DSH 声明的事件，尚未启动完整 AgentLoop、ToolRuntime 和 ApprovalService，因此真实工具执行与持久审批审计仍是本阶段验收门槛。上游缺少结构化审批来源时，reason 标记是当前版本的兼容方案。
+当前进度：前五项已落地并有 Cordis waterfall 测试。独立 dsh profile 已用真实 AgentLoop/ToolRuntime 验证 shadow 下工具执行和临时 enforce 下的 guardrail 拦截；Web profile 已启动并加载插件。完整 ApprovalService/UI 交互、持久审批审计和 Web 会话级执行仍待端到端验证。上游缺少结构化审批来源时，reason 标记是当前版本的兼容方案。复现范围见 [接入与验证](integration.md)。
 
 ### Phase 1：Judgment 与 Policy 分离
 
@@ -41,7 +41,7 @@
 - `native` 保留原生审批链；`machine` 只接管上游实际发出的审批；`review` 交给 human 或按 `uncertain: deny` 拒绝。
 - 默认不自动允许未取得领域资格的 provider/model。集成测试覆盖允许一次、拒绝、人工委托、无人值守拒绝和 shadow。
 
-当前进度：审批接管、资格匹配、review 策略与 shadow 已实现；完整上游权限预设/UI 切换和真实 AgentLoop/ToolRuntime/ApprovalService 端到端测试仍待完成。Jev 不附带自动放行资格。
+当前进度：审批接管、资格匹配、review 策略与 shadow 已实现，并有 Cordis 事件链测试；真实 AgentLoop/ToolRuntime 已验证 guardrail，完整上游权限预设/UI 切换和 ApprovalService 端到端测试仍待完成。Jev 不附带自动放行资格。
 
 ### 后续
 

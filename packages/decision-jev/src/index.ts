@@ -5,6 +5,7 @@
  */
 
 import type { Context } from "@deepseek-ai/cordis";
+import type DecisionLayer from "@techs/dsh-decision";
 import { Config, resolveJevConfig } from "./config.js";
 import type { JevConfig } from "./config.js";
 import { createJevAdapter } from "./client.js";
@@ -31,10 +32,11 @@ export { resolveJevConfig } from "./config.js";
 export function apply(ctx: Context, config: JevConfig): void {
   const spec = resolveJevConfig(config);
   ctx.effect(() => {
-    const unregisterProvider = ctx.decision.registerProvider(createJevProvider(spec));
+    const decision: DecisionLayer = ctx.decision;
+    const unregisterProvider = decision.registerProvider(createJevProvider(spec));
     let unregisterAdapter: () => void;
     try {
-      unregisterAdapter = ctx.decision.registerAdapter(createJevAdapter(spec));
+      unregisterAdapter = decision.registerAdapter(createJevAdapter(spec));
     } catch (error) {
       unregisterProvider();
       throw error;

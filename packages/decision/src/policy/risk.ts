@@ -18,6 +18,16 @@ export interface RiskThresholds {
   readonly denyAt: number;
 }
 
+/** Shared first-pass thresholds for every host. These are experimental, not calibrated. */
+export const DEFAULT_GUARDRAIL_RISKS: Readonly<Record<GuardrailRisk, RiskThresholds>> = {
+  destructive: { reviewAt: 0.35, denyAt: 0.85 },
+  secretExposure: { reviewAt: 0.15, denyAt: 0.7 },
+  privacyExposure: { reviewAt: 0.25, denyAt: 0.75 },
+  externalSideEffect: { reviewAt: 0.35, denyAt: 0.85 },
+  privilegeEscalation: { reviewAt: 0.3, denyAt: 0.8 },
+  scopeViolation: { reviewAt: 0.5, denyAt: 0.9 },
+};
+
 export interface PolicyDecision {
   readonly action: RiskAction;
   readonly reason: string;

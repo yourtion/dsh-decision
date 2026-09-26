@@ -5,9 +5,9 @@ import {
   type JudgmentAnswer,
   type JudgmentProvider,
   type JudgmentQuestion,
-} from "@techs/dsh-decision";
+} from "@techs/dsh-decision/kernel";
 import { createJevAdapter } from "./client.js";
-import type { JevSpec } from "./config.js";
+import type { JevSpec } from "./spec.js";
 
 function toJev(question: JudgmentQuestion): DecisionQuestion {
   switch (question.kind) {

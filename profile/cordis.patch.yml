@@ -34,7 +34,8 @@
     - id: decision-jev
       name: "@techs/dsh-decision-jev"
       config:
-        # API key from the environment; never commit keys.
-        apiKeyEnv: JEV_API_KEY
-        # baseUrl: https://jev-ai.pro/api   # default; use https://api.typesafe.ai for TypeSafe native
-        # model: jev-latest                 # default
+        # Vercel AI Gateway key from the environment; never commit keys.
+        apiKeyEnv: AI_GATEWAY_API_KEY
+        baseUrl: https://ai-gateway.vercel.sh/typesafe
+        model: typesafe-ai/jev
+        # For a direct Jev key instead, use baseUrl: https://jev-ai.pro/api and model: jev-latest.

@@ -16,8 +16,8 @@ import {
   type DecisionRequest,
   type NoulAnswer,
   type ScoreAnswer,
-} from "@techs/dsh-decision";
-import type { JevSpec } from "./config.js";
+} from "@techs/dsh-decision/kernel";
+import type { JevSpec } from "./spec.js";
 
 /** Retry once on these statuses with linear backoff, per the API reference. */
 const RETRYABLE_STATUS = new Set([429, 529]);
