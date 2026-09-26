@@ -151,14 +151,14 @@ dsh plugin --profile web add "file:$(pwd)/packages/decision" "file:$(pwd)/packag
 
 ### 验证范围（2026-09-26）
 
-| 路径             | 已验证                                                                                                            | 尚未做端到端验证              |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| 独立 dsh profile | `glm-5.3-flash` 真实工具调用；shadow 下工具继续执行；临时 enforce patch 触发 guardrail 拒绝，session 日志记录原因 | 路由、结果 judge、人工审批 UI |
-| dsh Web profile  | 插件进入配置并成功启动本地 HTTP 服务；未认证请求返回 401                                                          | 浏览器对话触发工具和审批      |
-| Jev Gateway      | 真实请求返回有效判断；guardrail 一次请求取得六维答案                                                              | 阈值校准与长期误判率          |
-| pi 扩展          | Flash 主模型调用只读工具，Jev shadow 完成判断；enforce 的 allow/review/deny 和失败策略有自动化测试                | 真实交互中的人工复核体验      |
+| 路径             | 已验证                                                                                                                               | 尚未做端到端验证                           |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| 独立 dsh profile | `glm-5.3-flash` 真实工具调用；shadow 下工具继续执行；临时 enforce patch 触发 guardrail 拒绝，session 日志记录原因                    | 路由、结果 judge、人工审批 UI              |
+| dsh Web profile  | 插件进入配置并成功启动本地 HTTP 服务；未认证请求返回 401                                                                             | 浏览器对话触发工具和审批                   |
+| Jev Gateway      | 真实请求返回有效判断；guardrail 一次请求取得六维答案；首次阈值校准（22 个标注用例，误阻断 0%、deny 漏放 0%，见 [评估方法](eval.md)） | 长期误判率、跨日稳定性与更大标注集下的复测 |
+| pi 扩展          | Flash 主模型调用只读工具，Jev shadow 完成判断；enforce 的 allow/review/deny 和失败策略有自动化测试                                   | 真实交互中的人工复核体验                   |
 
-`pnpm run typecheck`、`pnpm run test`（70 个测试）、`pnpm run lint` 和 `pnpm run fmt` 均已通过，GitHub Actions 在 push/PR 上运行同一组检查。Routing、Judge、Machine Approval 的主要分支由 Cordis waterfall 集成测试覆盖，但示例 profile 默认未开启 Routing/Judge，不能把这些测试等同于真实 Web 会话验证。相关设计与风险取舍见 [设计文档](design.md) 和 [v2 计划](v2-plan.md)。
+`pnpm run typecheck`、`pnpm run test`（86 个测试）、`pnpm run lint` 和 `pnpm run fmt` 均已通过，GitHub Actions 在 push/PR 上运行同一组检查。Routing、Judge、Machine Approval 的主要分支由 Cordis waterfall 集成测试覆盖，但示例 profile 默认未开启 Routing/Judge，不能把这些测试等同于真实 Web 会话验证。相关设计与风险取舍见 [设计文档](design.md) 和 [v2 计划](v2-plan.md)。
 
 ## 隐私与审计
 
@@ -184,7 +184,7 @@ live 模式对 `fixtures.json` 里的人工标注用例（良性/破坏性/外�
 
 ## 开发与分发
 
-`packages/decision` 提供不引入 Cordis/Schemastery 运行时依赖的 `./kernel` 子路径，`packages/decision-jev` 提供 `./provider` 和 `./spec` 子路径，pi 扩展只在类型位置导入 pi 的 `ExtensionAPI`。本地 `pi -e` 和 `pi install ./packages/pi-decision` 依赖 pnpm workspace 链接；当前三个包都是私有包，发布 npm 前要先发布依赖并替换 `workspace:` 版本。
+`packages/decision` 提供不引入 Cordis/Schemastery 运行时依赖的 `./kernel` 子路径，`packages/decision-jev` 提供 `./provider` 和 `./spec` 子路径，pi 扩展只在类型位置导入 pi 的 `ExtensionAPI`。本地 `pi -e` 和 `pi install ./packages/pi-decision` 依赖 pnpm workspace 链接；npm 发布用 `pnpm -r publish --access public`，`workspace:` 版本会按依赖拓扑顺序自动替换为实际版本（发布顺序 decision → decision-jev → pi-decision，已经 dry run 验证）。发布后 `pi install @techs/pi-decision` 和 dsh profile 的版本号依赖不再依赖本地仓库。
 
 新 Jev 类 provider 可实现 `@techs/dsh-decision` 的 `JudgmentProvider` 并注册到 `ctx.decision`：
 

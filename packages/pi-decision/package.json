@@ -1,7 +1,6 @@
 {
   "name": "@techs/pi-decision",
   "version": "0.1.0",
-  "private": true,
   "description": "Jev-backed tool guardrail for pi",
   "keywords": [
     "pi-package"
@@ -13,6 +12,9 @@
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

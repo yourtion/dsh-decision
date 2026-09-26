@@ -1,7 +1,6 @@
 {
   "name": "@techs/dsh-decision-jev",
   "version": "0.1.0",
-  "private": true,
   "description": "Jev (TypeSafe System One) adapter for the dsh decision layer",
   "files": [
     "lib",
@@ -25,6 +24,9 @@
     },
     "./package.json": "./package.json",
     "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

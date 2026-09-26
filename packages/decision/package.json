@@ -1,7 +1,6 @@
 {
   "name": "@techs/dsh-decision",
   "version": "0.1.0",
-  "private": true,
   "description": "Decision layer for dsh: provider-agnostic typed judgments (Jev first) behind tool guardrail, model routing, result judging, and machine approval seams",
   "files": [
     "lib",
@@ -21,6 +20,9 @@
     },
     "./package.json": "./package.json",
     "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

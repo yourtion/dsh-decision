@@ -6,8 +6,15 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-26
+
 ### Added
 
+- Initial release shape: `@techs/dsh-decision` (neutral judgment types,
+  deterministic versioned policies, four dsh waterfall seams),
+  `@techs/dsh-decision-jev` (TypeSafe System One wire adapter), and
+  `@techs/pi-decision` (pi `tool_call` guardrail extension), plus the dsh
+  example profile.
 - User-defined guardrail dimensions: `guardrail.customRisks` (dsh) and
   `PI_DECISION_RISKS` (pi, same JSON shape) append custom binary risk
   dimensions to the built-in six — same aggregation rights, packed into the
@@ -61,11 +68,3 @@ follows [Semantic Versioning](https://semver.org/).
   types, but `Session.append` exposes no way to set it, so audit persistence
   uses the JSONL file (session ids included for correlation) until upstream
   provides a supported channel.
-
-## [0.1.0]
-
-- Initial release shape: `@techs/dsh-decision` (neutral judgment types,
-  deterministic versioned policies, four dsh waterfall seams),
-  `@techs/dsh-decision-jev` (TypeSafe System One wire adapter), and
-  `@techs/pi-decision` (pi `tool_call` guardrail extension), plus the dsh
-  example profile.
