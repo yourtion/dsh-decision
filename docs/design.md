@@ -30,18 +30,18 @@
 
 ## 已固定的决策
 
-| #   | 决策             | 结论                                                                                                                                                                                                                                                                        |
-| --- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | 默认模式         | `shadow`：所有切面照常调用 adapter、记录日志，但一律 `next()` 放行；验证判断质量后再切 `enforce`                                                                                                                                                                            |
-| 2   | adapter 失败策略 | guardrail 可配 `onFailure: allow \| ask \| deny`，默认 `allow`（外部 API 故障不应瘫痪 agent；要严就把失败转 `ask` 人工兜底）。approval/judge/routing 失败一律降级委托（`next()`），**绝不因失败自动放行审批**                                                               |
-| 3   | guardrail 阈值   | 一次调用问两个 Noul：`harmful`（不可逆/破坏/生产变更）、`exposure`（密钥或隐私出信任边界）。`pMax = max(两者)`：`< allowBelow(0.2) → allow`；`≥ denyAt(0.7) → deny`；中间 `→ ask`（走 dsh approval 审批链，人工兜底）                                                       |
-| 4   | 工具覆盖         | `guardrail.tools` 为空 = 全部工具（含 PTC 内层调用，它们同样过 pre-execute）；可配精确名单只筛高危工具（延迟预算：每次 0.5–1.5s）                                                                                                                                           |
-| 5   | 模型路由         | 默认关闭。`agent/request` 中以 Choice 问"本轮该用哪档模型"，`confidence < confidenceFloor(0.6)` 回退默认选型；路由表（key→provider/model/effort/maxTokens）必须显式配置，**不内置任何 provider**（环境相关：zai/sensenova/DeepSeek 等由 overlay 决定）                      |
-| 6   | judge            | 默认关闭。post-execute 问两个 Noul：结果含 prompt injection？暴露密钥？`pMax ≥ blockAt(0.75) → block`（纠正性反馈替代结果），否则 accept                                                                                                                                    |
-| 7   | 机审 approval    | 默认关闭。`P(允许) ≥ allowAt(0.85) → allowed-once`；`< rejectBelow(0.5) → rejected`；中间委托人工。**uncalibrated adapter 永不自动放行**（auto-allow 要求 `adapter.calibrated === true`；校准是 agent-chaperone 实测数据的前提）                                            |
-| 8   | 隐私边界         | 发给外部 API 的 `state` 最小化：guardrail 只发工具名+参数 JSON；routing 只发最后一条用户消息（截断）；judge 发结果文本（截断 8k）。不发送系统提示、历史对话、密钥明文（参数原样含密钥时按原样发出——guardrail 本身需要看到它，这与 agent-chaperone 的取舍一致，README 注明） |
-| 9   | 参数改写         | 不做。dsh 的 pre-execute 明确排除参数改写（参数已入会话日志）；纠正靠 deny+reason                                                                                                                                                                                           |
-| 10  | 配置面           | 全部经 schemastery `Config` 校验 + 显式 `resolveConfig()` 补默认值（默认值都在 resolve 函数里可见，无隐藏 `??`）；jev 的 `apiKey`/`apiKeyEnv` 二选一，缺失即加载失败（fail loud）                                                                                           |
+| #   | 决策             | 结论                                                                                                                                                                                                                                                                                                               |
+| --- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | 默认模式         | `shadow`：所有切面照常调用 adapter、记录日志，但一律 `next()` 放行；验证判断质量后再切 `enforce`                                                                                                                                                                                                                   |
+| 2   | adapter 失败策略 | guardrail 可配 `onFailure: allow \| ask \| deny`，默认 `allow`（外部 API 故障不应瘫痪 agent；要严就把失败转 `ask` 人工兜底）。approval/judge/routing 失败一律降级委托（`next()`），**绝不因失败自动放行审批**                                                                                                      |
+| 3   | guardrail 阈值   | 一次调用问两个 Noul：`harmful`（不可逆/破坏/生产变更）、`exposure`（密钥或隐私出信任边界）。`pMax = max(两者)`：`< allowBelow(0.2) → allow`；`≥ denyAt(0.7) → deny`；中间 `→ ask`（走 dsh approval 审批链，人工兜底）                                                                                              |
+| 4   | 工具覆盖         | `guardrail.tools` 为空 = 全部工具（含 PTC 内层调用，它们同样过 pre-execute）；可配精确名单只筛高危工具（延迟预算：每次 0.5–1.5s）                                                                                                                                                                                  |
+| 5   | 模型路由         | 默认关闭。`agent/request` 中以 Choice 问"本轮该用哪档模型"，`confidence < confidenceFloor(0.6)` 回退默认选型；路由表（key→provider/model/effort/maxTokens）必须显式配置，**不内置任何 provider**（环境相关：zai/sensenova/DeepSeek 等由 overlay 决定）                                                             |
+| 6   | judge            | 默认关闭。post-execute 问两个 Noul：结果含 prompt injection？暴露密钥？`pMax ≥ blockAt(0.75) → block`（纠正性反馈替代结果），否则 accept                                                                                                                                                                           |
+| 7   | 机审 approval    | 默认关闭。`P(允许) ≥ allowAt(0.85) → allowed-once`；`< rejectBelow(0.5) → rejected`；中间委托人工。**uncalibrated adapter 永不自动放行**（auto-allow 要求 `adapter.calibrated === true`；校准是 agent-chaperone 实测数据的前提）                                                                                   |
+| 8   | 隐私边界         | 发给外部 API 的 `state` 最小化：guardrail 只发工具名+参数 JSON；routing 只发最后一条用户消息（截断）；judge 发结果文本（截断 8k）。不发送系统提示、历史对话、密钥明文（**v2 修订**：参数原样含密钥时也先经本地脱敏再发出，`privacy.outbound: raw` 可显式回退原样——见 [integration.md](integration.md#隐私与审计)） |
+| 9   | 参数改写         | 不做。dsh 的 pre-execute 明确排除参数改写（参数已入会话日志）；纠正靠 deny+reason                                                                                                                                                                                                                                  |
+| 10  | 配置面           | 全部经 schemastery `Config` 校验 + 显式 `resolveConfig()` 补默认值（默认值都在 resolve 函数里可见，无隐藏 `??`）；jev 的 `apiKey`/`apiKeyEnv` 二选一，缺失即加载失败（fail loud）                                                                                                                                  |
 
 ## Jev adapter（systemone wire）
 
@@ -51,7 +51,7 @@
   - Noul → `{ type:'noul', instructions, criteria?: {true,false} }`
   - Choice → `{ type:'choice', instructions, criteria: Record<选项, 描述|null> }`
 - 响应：`answers[key]`：Noul `{ noul: 0..1 }`（P(yes)）；Choice `{ choice, probabilities, confidence }`。
-- 429/529 指数退避重试一次；超时 `AbortSignal.any([请求 signal, AbortSignal.timeout(timeoutMs)])`。
+- 429/529 固定 500ms 延迟重试一次；超时 `AbortSignal.any([请求 signal, AbortSignal.timeout(timeoutMs)])`。
 - 不依赖 `@typesafe-ai/sdk`：薄 HTTP 客户端（fetch 可注入以便测试），运行时依赖只余 cordis/schemastery（+核心包）。
 
 ## 目录

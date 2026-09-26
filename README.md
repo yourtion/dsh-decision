@@ -55,4 +55,8 @@ pnpm run lint      # oxlint
 pnpm run fmt       # oxfmt --check
 ```
 
-架构与策略见 [设计文档](docs/design.md) 和 [v2 计划](docs/v2-plan.md)。风险阈值是实验值；请求发往外部 Jev 服务时可能包含原始工具参数。
+架构与策略见 [设计文档](docs/design.md) 和 [v2 计划](docs/v2-plan.md)。风险阈值是实验值，`enforce` 模式当前标记为实验特性（启动时会打警告）；发往外部 Jev 服务的状态默认经本地脱敏（掩码密钥形态的内容，`privacy.outbound: raw` 可回退原样），未识别的私密内容仍可能发出。每次判定的 sanitized 审计记录默认写入 `$XDG_STATE_HOME/dsh-decision/`（pi 为 `pi-audit.jsonl`，dsh 为 `dsh-audit.jsonl`），可用 `audit.enabled: false` 或 `PI_DECISION_AUDIT=off` 关闭。MIT 协议见 [LICENSE](LICENSE)，变更见 [CHANGELOG](CHANGELOG.md)。
+
+## 阈值与校准现状
+
+六维默认阈值来自 2026-09-26 的 live 评估（22 个人工标注用例，`typesafe-ai/jev`）：旧阈值下良性误阻断 75%，重校后 **误阻断 0%、deny 漏放 0%、deny 软化为转人工 0**，全部阈值与最近良性分数保持 ≥0.05 边际。校准过程包含一次提问措辞修复——旧 `externalSideEffect` 措辞把写工作区文件（0.74）打得比群发邮件（0.71）还高，改写并限定"会话外可见"语义后倒挂消除（良性最大分降至 0.13）。**阈值与提问措辞是成对校准的**，换模型或改问题都要重跑。方法、指标定义、`externalSideEffect` 调参案例和换环境流程见 [评估方法](docs/eval.md)，工具用法见 `pnpm run eval`（[说明](docs/integration.md#阈值评估)）。样本仍是种子集：`enforce` 的实验标记在标注集扩大并复测前不会摘除。

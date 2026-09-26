@@ -11,12 +11,16 @@
         enforcement: shadow
         machine:
           uncertain: human
+        privacy:
+          outbound: redact # redact masks credential-shaped content before Jev; raw sends as-is
+        audit:
+          enabled: true # sanitized verdict audit; defaults to ~/.local/state/dsh-decision/dsh-audit.jsonl
         guardrail:
           enabled: true
           # tools: [bash, run_command]          # empty screens every tool (0.5–1.5s per call)
-          # risks:
-          #   secretExposure: { reviewAt: 0.15, denyAt: 0.70 } # experimental
-          #   destructive: { reviewAt: 0.35, denyAt: 0.85 }    # experimental
+          # risks:                              # omitted → recalibrated built-ins (2026-09-26 eval)
+          #   secretExposure: { reviewAt: 0.55, denyAt: 0.85 }
+          #   destructive: { reviewAt: 0.45, denyAt: 0.55 }
           # onFailure: allow                    # adapter failure stance: allow | ask | deny
         # routing:
         #   enabled: true

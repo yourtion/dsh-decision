@@ -56,17 +56,22 @@ fi
 
 ### pi 配置与行为
 
-| 环境变量                             | 默认             | 作用                                                               |
-| ------------------------------------ | ---------------- | ------------------------------------------------------------------ |
-| `AI_GATEWAY_API_KEY` / `JEV_API_KEY` | 无               | Vercel Gateway key；同时存在时优先前者                             |
-| `PI_DECISION_JEV_BACKEND`            | `vercel`         | `vercel` 使用 Gateway；`direct` 使用 `jev-ai.pro` 和 `JEV_API_KEY` |
-| `PI_DECISION_ENFORCEMENT`            | `shadow`         | `shadow` 异步观察；`enforce` 等待判断并应用结果                    |
-| `PI_DECISION_TOOLS`                  | 空，表示所有工具 | 逗号分隔的准确工具名，如 `bash,write`                              |
-| `PI_DECISION_ON_FAILURE`             | `allow`          | Jev 请求或响应失败时的策略：`allow`、`ask`、`deny`                 |
+| 环境变量                             | 默认             | 作用                                                                   |
+| ------------------------------------ | ---------------- | ---------------------------------------------------------------------- |
+| `AI_GATEWAY_API_KEY` / `JEV_API_KEY` | 无               | Vercel Gateway key；同时存在时优先前者                                 |
+| `PI_DECISION_JEV_BACKEND`            | `vercel`         | `vercel` 使用 Gateway；`direct` 使用 `jev-ai.pro` 和 `JEV_API_KEY`     |
+| `PI_DECISION_ENFORCEMENT`            | `shadow`         | `shadow` 异步观察；`enforce` 等待判断并应用结果（实验特性）            |
+| `PI_DECISION_TOOLS`                  | 空，表示所有工具 | 逗号分隔的准确工具名，如 `bash,write`                                  |
+| `PI_DECISION_ON_FAILURE`             | `allow`          | Jev 请求或响应失败时的策略：`allow`、`ask`、`deny`                     |
+| `PI_DECISION_OUTBOUND`               | `redact`         | 出站脱敏：`redact` 掩码密钥形态内容；`raw` 原样发送                    |
+| `PI_DECISION_AUDIT`                  | `on`             | 审计 trace 开关：`on`、`off`                                           |
+| `PI_DECISION_AUDIT_PATH`             | XDG state 目录   | 审计 JSONL 文件路径，默认 `~/.local/state/dsh-decision/pi-audit.jsonl` |
 
 在 `shadow` 中，工具立即继续；只有 `review`、`deny` 或请求失败会写 stderr 日志，`allow` 不输出判定日志。在 `enforce` 中，`allow` 继续，`deny` 阻断，`review` 也阻断并提示人工复核，因为 pi 没有可移交的审批链。失败策略中的 `ask` 同样映射为阻断。`PI_DECISION_ON_FAILURE` 不影响缺 key 的加载错误。
 
-不要仅凭一次冒烟就切到 `enforce`。2026-09-26 的完整 pi 冒烟使用 pi 0.87.1、`zai-coding-cn/glm-5.3-flash` 主模型，模型调用一次 `read README.md`，工具成功返回，最终回复 `# @techs/dsh-decision`。Jev shadow 将这次只读调用判为 `review`；两次运行的 `secretExposure` 概率分别为 0.19 和 0.18，均越过 0.15 复核阈值。如果启用 `enforce`，此调用会被阻断。六维默认阈值是实验值，pi 包当前没有环境变量形式的阈值配置。
+**`enforce` 是实验特性。** 默认阈值来自 2026-09-26 的一次 live 评估（22 个标注用例，见[阈值评估](#阈值评估)），样本量小、未做跨日稳定性验证；enforce 启动时扩展会向 stderr 打一条警告。每次判定（shadow 和 enforce 都）会写一条 sanitized 审计记录到 `PI_DECISION_AUDIT_PATH`，内容只有判定、概率、policyVersion、脱敏计数和粗粒度错误类别，不含工具参数原文。
+
+2026-09-26 的完整 pi 冒烟（pi 0.87.1、`zai-coding-cn/glm-5.3-flash` 主模型）：模型调用一次 `read README.md`，工具成功返回，最终回复 `# @techs/dsh-decision`。Jev shadow 给出的 `secretExposure` 概率为 0.19/0.18——这正是重校前的旧阈值（复核线 0.15）下的典型只读误报；重校后该类调用按默认阈值放行。pi 包当前没有环境变量形式的阈值配置，需要覆盖时在 dsh 侧或代码内配置。
 
 ### pi 常见问题
 
@@ -101,13 +106,18 @@ dsh --profile decision '列出本目录文件并统计行数'
 常用配置改在 [profile](../profile/cordis.patch.yml) 的 `decision.config` 中，例如：
 
 ```yaml
-enforcement: shadow # 观察后再考虑 enforce
+enforcement: shadow # 实验特性：enforce 前先观察误报（启动时会再打一次警告）
+privacy:
+  outbound: redact # redact 掩码密钥形态内容后发送；raw 原样发送
+audit:
+  enabled: true # sanitized 判定审计，默认写 XDG state 目录
+  # path: /var/log/dsh-decision-audit.jsonl
 guardrail:
   enabled: true
   onFailure: allow # Jev 请求失败时 allow | ask | deny
-  risks:
-    secretExposure: { reviewAt: 0.15, denyAt: 0.70 }
-    destructive: { reviewAt: 0.35, denyAt: 0.85 }
+  # risks: # 省略时使用重校后的内置默认（2026-09-26 评估得出）
+  #   secretExposure: { reviewAt: 0.55, denyAt: 0.85 }
+  #   destructive: { reviewAt: 0.45, denyAt: 0.55 }
 routing: { enabled: false } # 启用时需自行配置可选 provider/model
 judge: { enabled: false, blockAt: 0.75 }
 machine: { uncertain: human } # human | deny
@@ -140,7 +150,29 @@ dsh plugin --profile web add "file:$(pwd)/packages/decision" "file:$(pwd)/packag
 | Jev Gateway      | 真实请求返回有效判断；guardrail 一次请求取得六维答案                                                              | 阈值校准与长期误判率          |
 | pi 扩展          | Flash 主模型调用只读工具，Jev shadow 完成判断；enforce 的 allow/review/deny 和失败策略有自动化测试                | 真实交互中的人工复核体验      |
 
-`pnpm run typecheck`、`pnpm run test`（54 个测试）、`pnpm run lint` 和 `pnpm run fmt` 均已通过。Routing、Judge、Machine Approval 的主要分支由 Cordis waterfall 集成测试覆盖，但示例 profile 默认未开启 Routing/Judge，不能把这些测试等同于真实 Web 会话验证。相关设计与风险取舍见 [设计文档](design.md) 和 [v2 计划](v2-plan.md)。
+`pnpm run typecheck`、`pnpm run test`（70 个测试）、`pnpm run lint` 和 `pnpm run fmt` 均已通过，GitHub Actions 在 push/PR 上运行同一组检查。Routing、Judge、Machine Approval 的主要分支由 Cordis waterfall 集成测试覆盖，但示例 profile 默认未开启 Routing/Judge，不能把这些测试等同于真实 Web 会话验证。相关设计与风险取舍见 [设计文档](design.md) 和 [v2 计划](v2-plan.md)。
+
+## 隐私与审计
+
+两个宿主默认对发往 Jev 的状态做**本地脱敏**：常见密钥形态（GitHub/GitLab/Slack/AWS/Anthropic/OpenAI/Google key、JWT、Bearer、PEM 私钥块）和敏感键名（`api_key`、`token`、`authorization` 等）下的字符串值会替换为 `[REDACTED:*]` 占位符。这是尽力而为的识别，不能保证覆盖所有私密内容；需要完整原文判断时可配 `privacy.outbound: raw`（pi 用 `PI_DECISION_OUTBOUND=raw`），此时建议只对低风险工具集开启 guardrail。
+
+每次判定都会写一条 sanitized 审计记录（JSONL，默认在 `$XDG_STATE_HOME/dsh-decision/` 下，dsh 为 `dsh-audit.jsonl`、pi 为 `pi-audit.jsonl`；dsh 记录含 `sessionId` 可与会话关联），字段只有：时间、宿主、切面、模式、工具名、判定、policyVersion、各维概率、脱敏计数、粗粒度错误类别——**不含工具参数、结果或提示原文**。dsh 侧同时通过 Cordis 事件 `decision/trace` 广播同一记录，供未来观测面板订阅。
+
+把判定写进 dsh 的 session 事件日志是 v2 计划的方向，但当前**有意未做**：上游契约要求仓库外事件类型必须带 `ignorable` 标记才能被恢复路径安全跳过，而 `Session.append`（0.1.7-rc.2 与上游 master 均是）没有设置该标记的入口；未带标记的自定义事件可能导致 session 恢复被拒绝。等上游提供受支持的写入通道后再迁移，审计文件里的 `sessionId` 保持会话关联。
+
+## 阈值评估
+
+六维阈值是实验值。`packages/decision-jev/eval/` 提供校准工作台（v2 计划 Phase 5 的地基）：
+
+```sh
+pnpm run build
+AI_GATEWAY_API_KEY=... pnpm run eval            # 真实调用 Jev，写 eval/results-<date>.json
+pnpm --filter @techs/dsh-decision-jev run eval --replay packages/decision-jev/eval/results-<date>.json  # 离线重放
+```
+
+live 模式对 `fixtures.json` 里的人工标注用例（良性/破坏性/外传/提权/敏感读取）逐个求六维概率并落盘（请求间隔默认 400ms，`EVAL_DELAY_MS` 可调；429/5xx 逐用例退避重试，中断保留已完成部分）；replay 模式不碰 API，输出当前默认阈值的混淆矩阵、误判清单，以及统一阈值网格的 Pareto 前沿。`eval:analyze` 输出逐维分离度报告和边际感知的阈值提案（可直接粘贴进配置）。换环境或换模型的自助校准流程、指标定义和 `externalSideEffect` 提问改写案例见 [评估方法](eval.md)。
+
+**2026-09-26 校准记录**（`typesafe-ai/jev`，22 用例，两轮）：第一轮暴露旧阈值良性误阻断 75%，重校后 0%/漏放 0%；第二轮修复 `externalSideEffect` 提问措辞的倒挂（工作区写入 0.74 > 群发邮件 0.71）后整组重校，最终误阻断 0%、漏放 0%、deny 软化 0，边际 ≥0.05。原始概率在 `eval/results-2026-09-26.json`（改写后）与 `eval/results-2026-09-26-original-instructions.json`（改写前基线），可用 replay/analyze 复核。
 
 ## 开发与分发
 
@@ -155,4 +187,4 @@ export function apply(ctx: Context): void {
 }
 ```
 
-旧的 `DecisionAdapter` 仍可通过 `registerAdapter()` 注册，但它的 `calibrated` 布尔值不授予 v2 自动审批资格。发往外部 API 的 state 可能包含原始工具参数，当前尚未做脱敏；风险阈值也尚未校准。
+旧的 `DecisionAdapter` 仍可通过 `registerAdapter()` 注册，但它的 `calibrated` 布尔值不授予 v2 自动审批资格。发往外部 API 的 state 默认经本地脱敏（见[隐私与审计](#隐私与审计)），未识别的私密内容仍可能发出；风险阈值也尚未校准，可用[评估工作台](#阈值评估)跟踪误判率。

@@ -47,6 +47,12 @@
 
 Phase 3 本地分析和脱敏；Phase 4 可脱敏的 DecisionTrace 与实际 outcome 关联；Phase 5 基于真实样本评估和调参。UI、预设、fast path 等数据依赖较强的工作随后进行。
 
+当前进度补充：
+
+- **Phase 3 首段落地**：出站默认策略为 `redact`（`privacy.outbound`），常见密钥形态与敏感键名在离开宿主前被掩码；检测不出的私密内容仍可能发出，策略上如实声明"尽力而为"。本地分析的深度提取（先本地提取敏感信号再决定出站）仍属后续。
+- **Phase 5 地基就绪并完成首次校准**：`packages/decision-jev/eval/` 有人工标注 fixtures、live/replay 两种模式、混淆矩阵与阈值 Pareto sweep；live 运行按 400ms 间隔限速。2026-09-26 首次 live 评估（22 用例）后重校了六维默认阈值：良性误阻断 75% → 0%，deny 漏放保持 0%。样本仍小，`enforce` 的实验标记在标注集扩大前不摘。
+- **审计 trace 以 JSONL 先行**：每次判定（含 shadow）落一条 sanitized 记录（判定、概率、policyVersion、脱敏计数、错误类别；不含参数原文），dsh 记录带 `sessionId`，并通过 Cordis 事件 `decision/trace` 广播。写入 session 事件日志受上游限制暂缓：仓库外事件类型需要 `ignorable` 标记，而 `Session.append` 当前无法设置它（rc.2 与上游 master 一致），未标记的自定义事件会让 session 恢复拒绝。已在上游架构说明（2026-08-30-retain-ignorable-external-session-events）确认该标记是既定兼容机制；待上游提供写入 API 后迁移。
+
 ## 核心不变量
 
 1. Judgment 只报告判断；Policy 决定行为。
