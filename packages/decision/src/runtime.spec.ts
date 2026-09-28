@@ -73,7 +73,7 @@ describe("provider runtime contract", () => {
     );
     const first = evaluateGuardrailPolicy(judgments, risks);
     expect(evaluateGuardrailPolicy({ ...judgments }, risks)).toEqual(first);
-    expect(first.policyVersion).toMatch(/^guardrail-v2\.1\.0:[0-9a-f]{64}$/);
+    expect(first.policyVersion).toMatch(/^guardrail-v3\.0\.0-experimental:[0-9a-f]{64}$/);
     expect(
       evaluateGuardrailPolicy(
         judgments,

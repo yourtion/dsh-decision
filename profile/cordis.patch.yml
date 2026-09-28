@@ -18,7 +18,7 @@
         guardrail:
           enabled: true
           # tools: [bash, run_command]          # empty screens every tool (0.5–1.5s per call)
-          # risks:                              # omitted → recalibrated built-ins (2026-09-26 eval)
+          # risks:                              # omitted → experimental built-ins; evaluate before enforce
           #   secretExposure: { reviewAt: 0.55, denyAt: 0.85 }
           #   destructive: { reviewAt: 0.45, denyAt: 0.55 }
           #   scopeViolation: { enabled: false } # first-class disable: not asked, not judged
@@ -32,7 +32,7 @@
         #   enabled: true
         #   confidenceFloor: 0.6
         #   routes:                             # provider/model come from your deployment; never built in
-        #     - { key: cheap,    provider: your-provider, model: your-small-model }
+        #     - { key: cheap,    provider: your-provider, model: your-small-model, description: routine local edits }
         #     - { key: flagship, provider: your-provider, model: your-big-model,  description: hard multi-file reasoning }
         # judge:
         #   enabled: true

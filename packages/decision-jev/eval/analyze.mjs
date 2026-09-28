@@ -2,8 +2,8 @@
 /**
  * Threshold analysis over a stored eval results file (no API traffic).
  *
- * Reports, per risk dimension: the score range by expected label, whether the
- * dimension separates benign from dangerous use at all, and a margin-aware
+ * Reports, per risk dimension: the score range by factual true/false labels,
+ * whether the dimension separates those cases, and a margin-aware
  * threshold proposal found by coordinate descent from the current defaults.
  * Proposals keep deny-expected misses at zero (a deny that lands in `review`
  * is tolerated only up to --max-soft) and require every threshold to keep at
@@ -16,7 +16,12 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { defaultRiskDefinitions } from "@techs/dsh-decision/kernel";
+import {
+  defaultRiskDefinitions,
+  evaluateGuardrailPolicy,
+  resolveGuardrailRisks,
+} from "@techs/dsh-decision/kernel";
+import { assertCompatible, evaluationMetadata, validateRows } from "./eval-core.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -33,48 +38,72 @@ if (!resultsPath) {
   process.exit(1);
 }
 
-const { rows } = JSON.parse(await readFile(resultsPath, "utf8"));
+const stored = JSON.parse(await readFile(resultsPath, "utf8"));
+const DEFAULTS = process.env.EVAL_RISKS
+  ? resolveGuardrailRisks(JSON.parse(process.env.EVAL_RISKS)).risks
+  : defaultRiskDefinitions();
+const issues = assertCompatible(
+  stored,
+  evaluationMetadata(DEFAULTS, [], undefined),
+  args.includes("--allow-incompatible"),
+);
+if (issues.length) console.warn(`EXPLORATORY incompatible analysis: ${issues.join("; ")}`);
+validateRows(
+  stored.rows,
+  DEFAULTS.map((risk) => risk.key),
+);
+const rows = stored.rows.filter((row) => (row.split ?? "calibration") === "calibration");
+const holdout = stored.rows.filter((row) => row.split === "holdout");
+if (!rows.length)
+  throw new Error("analysis needs calibration rows; holdout is reserved for validation");
 // Risk keys come from the results file, so custom-dimension runs analyze too;
 // thresholds exist only where a default definition matches the key.
-const DEFAULTS = defaultRiskDefinitions();
 const KEYS = [...new Set(rows.flatMap((r) => Object.keys(r.probabilities)))];
 const benign = rows.filter((r) => r.expected === "allow");
 const counts = { allow: 0, review: 0, deny: 0 };
 for (const r of rows) counts[r.expected] += 1;
 
-function evaluate(t) {
+function evaluate(t, sample = rows) {
   const c = {
     allow: { allow: 0, review: 0, deny: 0 },
     review: { allow: 0, review: 0, deny: 0 },
     deny: { allow: 0, review: 0, deny: 0 },
   };
-  for (const r of rows) {
-    let a = "allow";
-    for (const k of KEYS) {
-      const entry = t[k];
-      if (!entry) continue;
-      const p = r.probabilities[k];
-      if (p >= entry.denyAt) {
-        a = "deny";
-        break;
-      }
-      if (p >= entry.reviewAt) a = "review";
-    }
+  for (const r of sample) {
+    const configured = DEFAULTS.map((risk) => ({ ...risk, ...t[risk.key] }));
+    const a = evaluateGuardrailPolicy(r.probabilities, configured, {
+      unknownRisks: r.unknownRisks,
+      authorizedExternalSideEffect: r.authorizedExternalSideEffect,
+    }).action;
     c[r.expected][a] += 1;
   }
+  const allowCount = sample.filter((r) => r.expected === "allow").length;
+  const denyCount = sample.filter((r) => r.expected === "deny").length;
   return {
     c,
-    falseBlock: counts.allow ? (c.allow.review + c.allow.deny) / counts.allow : null,
-    miss: counts.deny ? c.deny.allow / counts.deny : null,
+    falseBlock: allowCount ? (c.allow.review + c.allow.deny) / allowCount : null,
+    miss: denyCount ? c.deny.allow / denyCount : null,
   };
+}
+
+function labelApplies(row, key) {
+  return typeof row.riskLabels?.[key] === "boolean";
+}
+
+function contributesToFalseMargin(row, key) {
+  return (
+    labelApplies(row, key) &&
+    row.riskLabels[key] === false &&
+    !(key === "externalSideEffect" && row.authorizedExternalSideEffect === true)
+  );
 }
 
 function marginsOk(t) {
   for (const k of KEYS) {
     if (!t[k]) continue;
-    for (const r of benign) {
+    for (const r of rows.filter((row) => contributesToFalseMargin(row, k))) {
       const p = r.probabilities[k];
-      if (t[k].denyAt - MARGIN < p || t[k].reviewAt - MARGIN < p) return false;
+      if (p !== undefined && (t[k].denyAt - MARGIN < p || t[k].reviewAt - MARGIN < p)) return false;
     }
   }
   return true;
@@ -83,18 +112,24 @@ function marginsOk(t) {
 console.log(
   `fixtures: ${rows.length} (allow ${counts.allow}, review ${counts.review}, deny ${counts.deny}), margin ≥ ${MARGIN}\n`,
 );
-console.log("per-dimension separation (independent signal above the benign mass):");
-console.log("  dimension              benignMax   first danger above   danger above benignMax");
+console.log("per-dimension separation (factual true/false labels; null labels omitted):");
+console.log("  dimension              falseMax    first true above   true above falseMax");
 for (const k of KEYS) {
-  const benignMax = Math.max(...benign.map((r) => r.probabilities[k]));
-  const danger = rows
-    .filter((r) => r.expected !== "allow")
+  const falseScores = rows
+    .filter((r) => labelApplies(r, k) && r.riskLabels[k] === false)
     .map((r) => r.probabilities[k])
+    .filter((p) => p !== undefined);
+  const trueScores = rows
+    .filter((r) => labelApplies(r, k) && r.riskLabels[k] === true)
+    .map((r) => r.probabilities[k])
+    .filter((p) => p !== undefined)
     .sort((a, b) => a - b);
-  const above = danger.filter((p) => p > benignMax);
+  const falseMax = falseScores.length ? Math.max(...falseScores) : undefined;
+  const above = falseMax === undefined ? [] : trueScores.filter((p) => p > falseMax);
   const first = above.length ? above[0].toFixed(2) : "—";
+  const maxLabel = falseMax === undefined ? "n/a" : falseMax.toFixed(2);
   console.log(
-    `  ${k.padEnd(22)} ${benignMax.toFixed(2).padEnd(11)} ${first.padEnd(19)} ${above.length}/${danger.length}${above.length === 0 ? "   (no independent signal)" : ` (gap ${above.length ? (above[0] - benignMax).toFixed(2) : ""})`}`,
+    `  ${k.padEnd(22)} ${maxLabel.padEnd(11)} ${first.padEnd(19)} ${above.length}/${trueScores.length}${above.length === 0 ? "   (no independent signal)" : ` (gap ${(above[0] - falseMax).toFixed(2)})`}`,
   );
 }
 
@@ -139,6 +174,12 @@ for (let round = 0; round < 12; round += 1) {
 }
 
 show("margin-aware proposal", t);
+if (holdout.length) {
+  const result = evaluate(t, holdout);
+  console.log(
+    `holdout check (${holdout.length} rows, not used to propose thresholds): ${JSON.stringify(result.c)}`,
+  );
+}
 console.log("\npaste-ready config:");
 console.log("risks:");
 for (const k of Object.keys(t)) {

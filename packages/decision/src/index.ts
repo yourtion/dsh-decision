@@ -13,7 +13,11 @@ import type { ApprovalRequestEvent, ApprovalOutcome } from "@deepseek-ai/dsh-use
 import { Config, resolveConfig } from "./config.js";
 import type { DecisionMode, GuardrailFailure, ResolvedConfig } from "./config.js";
 import { DecisionRuntime } from "./service.js";
-import { buildGuardrailRequest, decideGuardrail } from "./seams/guardrail.js";
+import {
+  prepareGuardrailRequest,
+  decideGuardrail,
+  type ToolDecisionContext,
+} from "./seams/guardrail.js";
 import { buildRoutingRequest, decideRouting } from "./seams/routing.js";
 import { buildJudgeRequest, decideJudge, judgeFeedback } from "./seams/judge.js";
 import { buildMachineApprovalRequest, decideMachineApproval } from "./seams/approval.js";
@@ -149,6 +153,11 @@ export default class DecisionLayer extends Service {
   readonly decision: DecisionRuntime;
   readonly #spec: ResolvedConfig;
   readonly #stepContexts = new StepContextStore();
+  readonly #pendingActions = new WeakMap<
+    NonNullable<ToolExecution["agent"]>,
+    Map<string, ToolExecution>
+  >();
+  readonly #pendingAbortCleanup = new WeakMap<ToolExecution, () => void>();
   readonly #trace: TraceSink;
 
   constructor(ctx: Context, config: Config) {
@@ -160,9 +169,10 @@ export default class DecisionLayer extends Service {
       : NULL_TRACE_SINK;
     if (spec.enforcement === "enforce") {
       this.ctx.logger.warn(
-        "decision: enforce is experimental — thresholds were calibrated on a small seed set; review the audit trace before trusting verdicts.",
+        "decision: enforce is experimental — current prompts and context have not been calibrated; evaluate them on your workload before trusting verdicts.",
       );
     }
+    this.#installContext();
     if (spec.guardrail.enabled) this.#installGuardrail();
     if (spec.routing.enabled) this.#installRouting();
     if (spec.judge.enabled) this.#installJudge();
@@ -176,6 +186,91 @@ export default class DecisionLayer extends Service {
 
   registerProvider(provider: JudgmentProvider): () => void {
     return this.decision.registerProvider(provider);
+  }
+
+  /** Capture accepted input even when routing is disabled. */
+  #installContext(): void {
+    this.ctx.on("agent/pre-step", async ({ agent, turn, step }, next) => {
+      const accepted = await next();
+      this.#stepContexts.record(agent, turn, step, accepted);
+      return accepted;
+    });
+    this.ctx.on("agent/disposed", ({ agent }) => {
+      this.#stepContexts.clear(agent);
+      for (const exec of this.#pendingActions.get(agent)?.values() ?? [])
+        this.#clearPendingAction(exec);
+      this.#pendingActions.delete(agent);
+    });
+    this.ctx.on(
+      "tools/pre-execute",
+      async (exec, next) => {
+        if (exec.agent !== undefined && exec.callId !== undefined && !exec.signal.aborted) {
+          let pending = this.#pendingActions.get(exec.agent);
+          if (!pending) this.#pendingActions.set(exec.agent, (pending = new Map()));
+          pending.set(exec.callId, exec);
+          const clear = () => {
+            pending.delete(exec.callId);
+            exec.signal.removeEventListener("abort", clear);
+            this.#pendingAbortCleanup.delete(exec);
+          };
+          this.#pendingAbortCleanup.set(exec, clear);
+          exec.signal.addEventListener("abort", clear, { once: true });
+          // Keep the abort listener and exact call until cancellation or tools/result.
+          return next();
+        }
+        return next();
+      },
+      { prepend: true },
+    );
+    this.ctx.on("tools/result", (exec) => {
+      const pending =
+        exec.agent === undefined || exec.callId === undefined
+          ? undefined
+          : this.#pendingActions.get(exec.agent)?.get(exec.callId);
+      this.#clearPendingAction(pending ?? exec);
+    });
+  }
+
+  #clearPendingAction(exec: ToolExecution): void {
+    const cleanup = this.#pendingAbortCleanup.get(exec);
+    if (cleanup) cleanup();
+    if (exec.agent !== undefined && exec.callId !== undefined) {
+      this.#pendingActions.get(exec.agent)?.delete(exec.callId);
+    }
+  }
+
+  #toolContext(agent: ToolExecution["agent"]): ToolDecisionContext {
+    if (agent === undefined) return {};
+    const accepted = this.#stepContexts.current(agent);
+    const committed =
+      agent.session?.deriveMessages().filter((message) => message.role === "user") ?? [];
+    const candidates = [...committed, ...(accepted?.messages ?? [])];
+    const seen = new Set<string>();
+    const messages = candidates
+      .toReversed()
+      .filter((message) => {
+        const fingerprint = message.content
+          .flatMap((block) => (block.type === "text" ? [block.text] : []))
+          .join("\n");
+        if (seen.has(fingerprint)) return false;
+        seen.add(fingerprint);
+        return true;
+      })
+      .toReversed()
+      .slice(-6);
+    const text = messages
+      .flatMap((message) =>
+        message.content.flatMap((block) => (block.type === "text" ? [block.text] : [])),
+      )
+      .join("\n\n");
+    // An incomplete request can hide constraints; treat it as unknown instead
+    // of silently classifying scope against a truncated prefix.
+    const userRequest = text.trim() !== "" && text.length <= 8_000 ? text : undefined;
+    const workspaceRoot = agent.session?.header.cwd;
+    return {
+      ...(userRequest === undefined ? {} : { userRequest }),
+      ...(workspaceRoot === undefined ? {} : { workspaceRoot }),
+    };
   }
 
   /** Apply the outbound privacy policy to a deep-frozen judgment state value. */
@@ -226,17 +321,24 @@ export default class DecisionLayer extends Service {
       async (exec: ToolExecution, next): Promise<PreToolDecision> => {
         if (guardrail.tools.size > 0 && !guardrail.tools.has(exec.name)) return next();
         if (exec.signal.aborted) return next();
-        const safeArgs = this.#redact(exec.arguments);
+        const prepared = prepareGuardrailRequest(
+          exec.name,
+          exec.arguments,
+          guardrail.risks,
+          this.#toolContext(exec.agent),
+          spec.privacy.outbound,
+        );
+        const evaluate = () =>
+          Object.keys(prepared.request.questions).length === 0
+            ? Promise.resolve({ provider: spec.provider, answers: {} })
+            : this.decision.evaluate(prepared.request, exec.signal);
         const sessionId = exec.agent?.id;
         const base = { tool: exec.name, ...(sessionId === undefined ? {} : { sessionId }) };
         if (spec.mode === "shadow") {
           void Promise.resolve()
             .then(async () => {
-              const result = await this.decision.evaluate(
-                buildGuardrailRequest(exec.name, safeArgs.value, guardrail.risks),
-                exec.signal,
-              );
-              const verdict = decideGuardrail(result, guardrail);
+              const result = await evaluate();
+              const verdict = decideGuardrail(result, guardrail, prepared);
               if (verdict.action !== "allow") {
                 this.ctx.logger.info(
                   `decision shadow: ${exec.name} would ${verdict.action} (${verdict.driver} ${verdict.probability?.toFixed(2)}).`,
@@ -247,7 +349,7 @@ export default class DecisionLayer extends Service {
                 action: verdict.action,
                 policyVersion: verdict.policyVersion,
                 judgments: binaryJudgments(result),
-                ...(safeArgs.count === 0 ? {} : { redactions: safeArgs.count }),
+                ...(prepared.redactions === 0 ? {} : { redactions: prepared.redactions }),
               });
             })
             .catch((error: unknown) => {
@@ -263,17 +365,14 @@ export default class DecisionLayer extends Service {
           return next();
         }
         try {
-          const result = await this.decision.evaluate(
-            buildGuardrailRequest(exec.name, safeArgs.value, guardrail.risks),
-            exec.signal,
-          );
-          const verdict = decideGuardrail(result, guardrail);
+          const result = await evaluate();
+          const verdict = decideGuardrail(result, guardrail, prepared);
           this.#audit("guardrail", {
             ...base,
             action: verdict.action,
             policyVersion: verdict.policyVersion,
             judgments: binaryJudgments(result),
-            ...(safeArgs.count === 0 ? {} : { redactions: safeArgs.count }),
+            ...(prepared.redactions === 0 ? {} : { redactions: prepared.redactions }),
           });
           return this.#applyGuardrail(verdict.action, verdict.reason, spec.mode, next);
         } catch (error) {
@@ -309,12 +408,6 @@ export default class DecisionLayer extends Service {
   #installRouting(): void {
     const spec = this.#spec;
     const routing = spec.routing;
-    this.ctx.on("agent/pre-step", async ({ agent, turn, step }, next) => {
-      const accepted = await next();
-      this.#stepContexts.record(agent, turn, step, accepted);
-      return accepted;
-    });
-    this.ctx.on("agent/disposed", ({ agent }) => this.#stepContexts.clear(agent));
     this.ctx.on("agent/request", async ({ agent, turn, step, signal }, next) => {
       const fallback: LlmCallConfig = await next();
       if (signal.aborted) return fallback;
@@ -326,7 +419,7 @@ export default class DecisionLayer extends Service {
         void Promise.resolve()
           .then(async () => {
             const result = await this.decision.evaluate(
-              buildRoutingRequest(safeHint.value, routing.routes),
+              buildRoutingRequest(safeHint.value, routing),
               signal,
             );
             const routed = decideRouting(result, routing, fallback);
@@ -349,7 +442,7 @@ export default class DecisionLayer extends Service {
       }
       try {
         const result = await this.decision.evaluate(
-          buildRoutingRequest(safeHint.value, routing.routes),
+          buildRoutingRequest(safeHint.value, routing),
           signal,
         );
         const routed = decideRouting(result, routing, fallback);
@@ -380,14 +473,29 @@ export default class DecisionLayer extends Service {
         const safeResult = this.#redact(result);
         const sessionId = exec.agent?.id;
         const base = { tool: exec.name, ...(sessionId === undefined ? {} : { sessionId }) };
+        if (spec.mode === "enforce" && safeResult.count > 0) {
+          this.#audit("judge", { ...base, action: "block", redactions: safeResult.count });
+          return {
+            kind: "block",
+            feedback: judgeFeedback(
+              "decision-layer: original tool result contains host-detected secrets and was withheld.",
+            ),
+          };
+        }
         if (spec.mode === "shadow") {
           void Promise.resolve()
             .then(async () => {
               const judgment = await this.decision.evaluate(
-                buildJudgeRequest(exec.name, safeResult.value),
+                buildJudgeRequest(
+                  exec.name,
+                  safeResult.value,
+                  this.#toolContext(exec.agent),
+                  safeResult.count,
+                  spec.privacy.outbound,
+                ),
                 exec.signal,
               );
-              const verdict = decideJudge(judgment, judge);
+              const verdict = decideJudge(judgment, judge, safeResult.count);
               if (verdict.action === "block") {
                 this.ctx.logger.info(
                   `decision shadow: ${exec.name} result would be blocked (${verdict.pMax.toFixed(2)}).`,
@@ -408,10 +516,16 @@ export default class DecisionLayer extends Service {
         }
         try {
           const judgment = await this.decision.evaluate(
-            buildJudgeRequest(exec.name, safeResult.value),
+            buildJudgeRequest(
+              exec.name,
+              safeResult.value,
+              this.#toolContext(exec.agent),
+              safeResult.count,
+              spec.privacy.outbound,
+            ),
             exec.signal,
           );
-          const verdict = decideJudge(judgment, judge);
+          const verdict = decideJudge(judgment, judge, safeResult.count);
           this.#audit("judge", {
             ...base,
             action: verdict.action,
@@ -445,17 +559,32 @@ export default class DecisionLayer extends Service {
             : next();
         }
         const safeReason = this.#redactString(req.reason ?? "");
+        const pending =
+          req.callId === undefined
+            ? undefined
+            : this.#pendingActions.get(req.agent)?.get(req.callId);
+        const approvalContext = {
+          ...this.#toolContext(req.agent),
+          toolName: req.toolName,
+          ...(pending?.name === req.toolName ? { arguments: pending.arguments } : {}),
+        };
         const base = { tool: req.toolName, sessionId: req.agent.id };
         if (spec.enforcement === "shadow") {
           void Promise.resolve()
             .then(async () => {
+              const capabilities = this.decision.provider().capabilities();
               const result = await this.decision.evaluate(
-                buildMachineApprovalRequest(req.toolName, safeReason.value),
+                buildMachineApprovalRequest(
+                  req.toolName,
+                  safeReason.value,
+                  approvalContext,
+                  spec.privacy.outbound,
+                ),
                 req.signal,
               );
               const qualified = trustedForAutoAllow(
-                this.decision.provider().capabilities(),
-                this.decision.provider().model,
+                capabilities,
+                result.resolvedModel ?? result.model,
                 "approval",
                 policyVersion,
               );
@@ -464,6 +593,8 @@ export default class DecisionLayer extends Service {
                 approval,
                 qualified,
                 spec.machine.uncertain,
+                approvalContext,
+                req.reason,
               );
               this.ctx.logger.info(`decision shadow: ${req.toolName} would ${verdict.action}.`);
               this.#audit("approval", {
@@ -488,13 +619,19 @@ export default class DecisionLayer extends Service {
         }
         let action: "allow" | "review" | "deny";
         try {
+          const capabilities = this.decision.provider().capabilities();
           const result = await this.decision.evaluate(
-            buildMachineApprovalRequest(req.toolName, safeReason.value),
+            buildMachineApprovalRequest(
+              req.toolName,
+              safeReason.value,
+              approvalContext,
+              spec.privacy.outbound,
+            ),
             req.signal,
           );
           const qualified = trustedForAutoAllow(
-            this.decision.provider().capabilities(),
-            this.decision.provider().model,
+            capabilities,
+            result.resolvedModel ?? result.model,
             "approval",
             policyVersion,
           );
@@ -503,6 +640,8 @@ export default class DecisionLayer extends Service {
             approval,
             qualified,
             spec.machine.uncertain,
+            approvalContext,
+            req.reason,
           ).action;
           this.#audit("approval", {
             ...base,

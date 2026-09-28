@@ -33,7 +33,12 @@ export function createJevProvider(
       const questions = Object.fromEntries(
         Object.entries(request.questions).map(([key, question]) => [key, toJev(question)]),
       );
-      const legacy = await client.evaluate({ state: request.state, questions, signal });
+      const evaluation = await client.evaluateWithMetadata({
+        state: request.state,
+        questions,
+        signal,
+      });
+      const legacy = evaluation.answers;
       const answers: Record<string, JudgmentAnswer> = {};
       for (const key of Object.keys(request.questions)) {
         const answer = legacy[key];
@@ -61,7 +66,13 @@ export function createJevProvider(
             throw new ProviderValidationError(`jev: missing answer for "${key}".`);
         }
       }
-      return { provider: "jev", model: spec.model, answers };
+      return {
+        provider: "jev",
+        model: spec.model,
+        requestedModel: spec.model,
+        ...(evaluation.model === undefined ? {} : { resolvedModel: evaluation.model }),
+        answers,
+      };
     },
   };
 }

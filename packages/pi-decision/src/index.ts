@@ -3,6 +3,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { JsonlTraceSink, NULL_TRACE_SINK } from "@techs/dsh-decision/kernel";
 import { createJevProvider } from "@techs/dsh-decision-jev/provider";
 import { createToolCallHandler } from "./handler.js";
+import { toolDecisionContext } from "./context.js";
 import { resolvePiGuardrailSpec, resolvePiJevSpec } from "./spec.js";
 
 const log = (message: string): void => {
@@ -14,7 +15,7 @@ export default function piDecision(pi: ExtensionAPI): void {
   const spec = resolvePiGuardrailSpec(process.env);
   if (spec.mode === "enforce") {
     log(
-      "pi-decision: enforce is experimental — thresholds were calibrated on a small seed set; review the audit trace before trusting verdicts.",
+      "pi-decision: enforce is experimental — current prompts and context have not been calibrated; evaluate them on your workload before trusting verdicts.",
     );
   }
   const trace = spec.audit.enabled ? new JsonlTraceSink(spec.audit.path, log) : NULL_TRACE_SINK;
@@ -25,6 +26,9 @@ export default function piDecision(pi: ExtensionAPI): void {
     trace,
   );
   pi.on("tool_call", async (event, ctx) =>
-    handler({ toolName: event.toolName, input: event.input }, ctx.signal),
+    handler(
+      { toolName: event.toolName, input: event.input, context: toolDecisionContext(ctx) },
+      ctx.signal,
+    ),
   );
 }

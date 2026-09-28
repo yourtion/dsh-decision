@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { decideGuardrail } from "./guardrail.ts";
-import { decideRouting } from "./routing.ts";
-import { decideJudge } from "./judge.ts";
-import { decideApproval, DELEGATE } from "./approval.ts";
+import { buildRoutingRequest, decideRouting } from "./routing.ts";
+import { buildJudgeRequest, decideJudge } from "./judge.ts";
+import {
+  buildMachineApprovalRequest,
+  decideMachineApproval,
+  decideApproval,
+  DELEGATE,
+} from "./approval.ts";
+import { guardrailActionHash } from "./guardrail.ts";
 import { resolveConfig } from "../config.ts";
 import type { DecisionAnswer } from "../types.ts";
 import type { JudgmentResult } from "../judgment.ts";
@@ -33,11 +39,16 @@ const guardrailResult = (risks: Record<string, number>): JudgmentResult => ({
     GUARDRAIL_RISKS.map((risk) => [risk, { kind: "binary", probability: risks[risk] ?? 0 }]),
   ),
 });
-const judgeResult = (injection: number, exposure: number): JudgmentResult => ({
+const judgeResult = (
+  injection: number,
+  secretExposure: number,
+  privacyExposure = 0,
+): JudgmentResult => ({
   provider: "test",
   answers: {
     injection: { kind: "binary", probability: injection },
-    exposure: { kind: "binary", probability: exposure },
+    secretExposure: { kind: "binary", probability: secretExposure },
+    privacyExposure: { kind: "binary", probability: privacyExposure },
   },
 });
 
@@ -86,9 +97,15 @@ describe("routing decisions", () => {
     routing: {
       enabled: true,
       routes: [
-        { key: "cheap", provider: "p", model: "small" },
+        {
+          key: "cheap",
+          description: "Simple, local, well-specified work.",
+          provider: "p",
+          model: "small",
+        },
         {
           key: "flagship",
+          description: "Cross-module work requiring deeper reasoning.",
           provider: "p",
           model: "big",
           reasoningEffort: "high",
@@ -122,6 +139,76 @@ describe("routing decisions", () => {
     });
     expect(routed).toEqual({ provider: "p", model: "small", maxTokens: 1_024 });
   });
+
+  it("offers an explicit insufficient-context fallback and requires answer confidence", () => {
+    const question = buildRoutingRequest("vague task", routingSpec).questions.tier;
+    expect(question?.kind).toBe("categorical");
+    if (question?.kind === "categorical") {
+      expect(question.options.insufficient_context).toContain("default");
+      expect(question.options.cheap).toContain("Simple");
+    }
+    expect(decideRouting(categorical("insufficient_context", 0.99), routingSpec, fallback)).toBe(
+      fallback,
+    );
+    const withoutConfidence = categorical("flagship", 0.99);
+    expect(
+      decideRouting(
+        {
+          ...withoutConfidence,
+          answers: {
+            tier: { kind: "categorical", choice: "flagship", probabilities: { flagship: 0.99 } },
+          },
+        },
+        routingSpec,
+        fallback,
+      ),
+    ).toBe(fallback);
+  });
+
+  it("normalizes and weights independent ordinal scores into configured bands", () => {
+    const composite = resolveConfig({
+      routing: {
+        enabled: true,
+        strategy: "composite",
+        routes: [...routingSpec.routes],
+        composite: {
+          weights: { reasoningComplexity: 2, changeScope: 1, ambiguity: 1 },
+          bands: [
+            { upTo: 0.5, routeKey: "cheap" },
+            { upTo: 1, routeKey: "flagship" },
+          ],
+        },
+      },
+    }).routing;
+    const request = buildRoutingRequest("cross-module refactor", composite);
+    expect(Object.keys(request.questions)).toEqual([
+      "reasoningComplexity",
+      "changeScope",
+      "ambiguity",
+    ]);
+    const result: JudgmentResult = {
+      provider: "test",
+      answers: {
+        reasoningComplexity: { kind: "ordinal", score: 3, probabilities: {}, confidence: 0.9 },
+        changeScope: { kind: "ordinal", score: 1, probabilities: {}, confidence: 0.9 },
+        ambiguity: { kind: "ordinal", score: 1, probabilities: {}, confidence: 0.9 },
+      },
+    };
+    expect(decideRouting(result, composite, fallback).model).toBe("big");
+    expect(
+      decideRouting(
+        {
+          ...result,
+          answers: {
+            ...result.answers,
+            ambiguity: { kind: "ordinal", score: 1, probabilities: {}, confidence: 0.2 },
+          },
+        },
+        composite,
+        fallback,
+      ),
+    ).toBe(fallback);
+  });
 });
 
 describe("judge decisions", () => {
@@ -131,21 +218,81 @@ describe("judge decisions", () => {
     expect(blocked.action).toBe("block");
     expect(blocked.reason).toContain("prompt injection");
   });
+
+  it("asks separate secret and privacy questions and marks truncated results", () => {
+    const request = buildJudgeRequest("read", {
+      content: [{ type: "text", text: "x".repeat(9000) }],
+    } as never);
+    expect(Object.keys(request.questions)).toEqual([
+      "injection",
+      "secretExposure",
+      "privacyExposure",
+    ]);
+    expect((request.state as Record<string, unknown>).resultTruncated).toBe(true);
+    expect(decideJudge(judgeResult(0.1, 0.2, 0.9), spec.judge).reason).toContain(
+      "privacy exposure",
+    );
+  });
+
+  it("adds sanitized task context and treats only trusted original redactions as secret evidence", () => {
+    const token = "ghp_" + "a".repeat(36);
+    const safeResult = { content: [{ type: "text", text: "Output: [REDACTED:token]" }] } as never;
+    const request = buildJudgeRequest("read", safeResult, {
+      userRequest: `Inspect the output ${token}`,
+      workspaceRoot: "/project",
+      environment: "test",
+    });
+    expect(JSON.stringify(request.state)).not.toContain(token);
+    expect(request.state).toMatchObject({ workspaceRoot: "/project", environment: "test" });
+    expect(request.questions.privacyExposure?.criteria?.false).toMatch(
+      /missing task context does not establish authorization/i,
+    );
+    expect(decideJudge(judgeResult(0.01, 0.01), spec.judge).action).toBe("accept");
+    const blocked = decideJudge(judgeResult(0.01, 0.01), spec.judge, 1);
+    expect(blocked.action).toBe("block");
+    expect(blocked.reason).toContain("detected in the original result");
+    const raw = buildJudgeRequest(
+      "read",
+      { content: [{ type: "text", text: token }] } as never,
+      undefined,
+      0,
+      "raw",
+    );
+    expect(JSON.stringify(raw.state)).toContain(token);
+  });
 });
 
 describe("approval decisions", () => {
-  it("allows at or above allowAt with a calibrated adapter only", () => {
-    expect(decideApproval({ allow: noul(0.9) }, spec.approval, true)).toBe("allowed-once");
+  it("legacy answers always delegate without exact host authorization", () => {
+    expect(decideApproval({ allow: noul(0.9) }, spec.approval, true)).toBe(DELEGATE);
     expect(decideApproval({ allow: noul(0.9) }, spec.approval, false)).toBe(DELEGATE);
   });
 
-  it("rejects below rejectBelow and delegates in between", () => {
-    expect(decideApproval({ allow: noul(0.2) }, spec.approval, true)).toBe("rejected");
+  it("delegates low and middle legacy scores without context", () => {
+    expect(decideApproval({ allow: noul(0.2) }, spec.approval, true)).toBe(DELEGATE);
     expect(decideApproval({ allow: noul(0.6) }, spec.approval, true)).toBe(DELEGATE);
   });
 });
 
 describe("v2 machine approval policy", () => {
+  it("redacts approval context by default, supports raw mode, and rejects tool mismatches", () => {
+    const token = "ghp_" + "a".repeat(36);
+    const context = {
+      toolName: "send-email",
+      arguments: { body: token },
+      userRequest: "Send the release email",
+      workspaceRoot: "/project",
+      environment: "production",
+    };
+    const redacted = buildMachineApprovalRequest("send-email", `Deliver ${token}`, context);
+    expect(JSON.stringify(redacted.state)).not.toContain(token);
+    const raw = buildMachineApprovalRequest("send-email", `Deliver ${token}`, context, "raw");
+    expect(JSON.stringify(raw.state)).toContain(token);
+    expect(() => buildMachineApprovalRequest("different-tool", "Deliver", context)).toThrow(
+      /does not match/,
+    );
+  });
+
   it("requires a matching model, domain and policy version for auto allow", () => {
     const version = approvalPolicyVersion(spec.approval, "human");
     const capabilities = {
@@ -167,10 +314,62 @@ describe("v2 machine approval policy", () => {
     expect(trustedForAutoAllow(capabilities, "m1", "approval", "old-policy")).toBe(false);
   });
 
-  it("maps unqualified high scores to review and low scores to deny", () => {
+  it("requires complete host evidence before a model score can decide", () => {
     expect(evaluateMachineApproval(0.99, spec.approval, false).action).toBe("review");
-    expect(evaluateMachineApproval(0.99, spec.approval, true).action).toBe("allow");
-    expect(evaluateMachineApproval(0.1, spec.approval, false).action).toBe("deny");
+    expect(evaluateMachineApproval(0.99, spec.approval, true).action).toBe("review");
+    expect(evaluateMachineApproval(0.1, spec.approval, false).action).toBe("review");
+    expect(
+      evaluateMachineApproval(0.1, spec.approval, false, "human", {
+        contextComplete: true,
+        authorized: false,
+        reasonMatchProbability: 0.9,
+      }).action,
+    ).toBe("deny");
+  });
+
+  it("grants only for matching action authorization, reason, and calibration", () => {
+    const args = { command: "echo ok" };
+    const contextBase = {
+      toolName: "bash",
+      arguments: args,
+      userRequest: "run echo ok",
+      workspaceRoot: "/tmp/work",
+    };
+    const context = {
+      ...contextBase,
+      authorization: {
+        toolName: "bash",
+        workspaceRoot: "/tmp/work",
+        argumentsHash: guardrailActionHash("bash", args, contextBase),
+        granted: true as const,
+      },
+    };
+    const result: JudgmentResult = {
+      provider: "test",
+      answers: {
+        withinScope: { kind: "binary", probability: 0.95 },
+        reasonMatchesAction: { kind: "binary", probability: 0.96 },
+      },
+    };
+    const request = buildMachineApprovalRequest("bash", "run echo ok", context);
+    expect((request.state as Record<string, unknown>).authorization).toBeUndefined();
+    expect(
+      decideMachineApproval(result, spec.approval, true, "human", context, "run echo ok").action,
+    ).toBe("allow");
+    expect(
+      decideMachineApproval(result, spec.approval, false, "human", context, "run echo ok").action,
+    ).toBe("review");
+    expect(
+      decideMachineApproval(
+        result,
+        spec.approval,
+        true,
+        "human",
+        { ...context, arguments: { command: "rm -rf /tmp/work" } },
+        "run echo ok",
+      ).action,
+    ).toBe("review");
+    expect(decideMachineApproval(result, spec.approval, true, "human").action).toBe("review");
   });
 
   it("changes policy identity when thresholds or uncertainty change", () => {
@@ -202,5 +401,53 @@ describe("config resolution", () => {
       /requires approval/,
     );
     expect(() => resolveConfig({ timeoutMs: 0 })).toThrow(/timeoutMs/);
+  });
+
+  it("validates route descriptions, reserved keys, composite weights and bands", () => {
+    expect(() => resolveConfig({ routing: { enabled: true, routes: [{ key: "small" }] } })).toThrow(
+      /description/,
+    );
+    expect(() =>
+      resolveConfig({
+        routing: {
+          enabled: true,
+          routes: [{ key: "insufficient_context", description: "fallback" }],
+        },
+      }),
+    ).toThrow(/reserved|cannot/);
+    const routes = [{ key: "small", description: "Simple local work", model: "small" }];
+    expect(() =>
+      resolveConfig({ routing: { enabled: true, routes, confidenceFloor: Number.NaN } }),
+    ).toThrow(/confidenceFloor/);
+    expect(() =>
+      resolveConfig({
+        routing: {
+          enabled: true,
+          strategy: "composite",
+          routes,
+          composite: { weights: { ambiguity: 0 }, bands: [{ upTo: 1, routeKey: "small" }] },
+        },
+      }),
+    ).toThrow(/weight/);
+    expect(() =>
+      resolveConfig({
+        routing: {
+          enabled: true,
+          strategy: "composite",
+          routes,
+          composite: { bands: [{ upTo: 0.5, routeKey: "small" }] },
+        },
+      }),
+    ).toThrow(/final/);
+    expect(() =>
+      resolveConfig({
+        routing: {
+          enabled: true,
+          strategy: "composite",
+          routes,
+          composite: { bands: [{ upTo: 1, routeKey: "missing" }] },
+        },
+      }),
+    ).toThrow(/bands/);
   });
 });

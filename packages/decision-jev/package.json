@@ -45,7 +45,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && node --test eval/eval-core.test.mjs",
     "eval": "node eval/run-eval.mjs",
     "eval:replay": "node eval/run-eval.mjs --replay",
     "eval:analyze": "node eval/analyze.mjs"

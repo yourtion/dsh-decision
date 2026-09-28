@@ -37,7 +37,11 @@ describe("Jev JudgmentProvider", () => {
     const result = await createJevProvider(spec, fetchImpl).evaluate({
       state: { tool: "bash" },
       questions: {
-        risk: { kind: "binary", instructions: "Risk?" },
+        risk: {
+          kind: "binary",
+          instructions: "Risk?",
+          criteria: { true: "Discloses a secret", false: "No secret disclosure" },
+        },
         tier: {
           kind: "categorical",
           instructions: "Tier?",
@@ -52,6 +56,10 @@ describe("Jev JudgmentProvider", () => {
     });
     const body = sent as { questions: Record<string, { type: string; criteria?: unknown }> };
     expect(body.questions.risk.type).toBe("noul");
+    expect(body.questions.risk.criteria).toEqual({
+      true: "Discloses a secret",
+      false: "No secret disclosure",
+    });
     expect(body.questions.tier.type).toBe("choice");
     expect(body.questions.severity).toMatchObject({
       type: "score",
@@ -60,5 +68,35 @@ describe("Jev JudgmentProvider", () => {
     expect(result.answers.risk).toEqual({ kind: "binary", probability: 0.2 });
     expect(result.answers.tier).toMatchObject({ kind: "categorical", choice: "large" });
     expect(result.answers.severity).toMatchObject({ kind: "ordinal", score: 1.5 });
+    expect(result.requestedModel).toBe("jev-latest");
+    expect(result.model).toBe("jev-latest");
+    expect(result.resolvedModel).toBeUndefined();
+  });
+
+  it("keeps concurrent responses' actual model identity separate from the requested alias", async () => {
+    const fetchImpl = (async (_url: string, init: RequestInit) => {
+      const { state } = JSON.parse(init.body as string);
+      await new Promise((resolve) => setTimeout(resolve, state === "first" ? 10 : 0));
+      return new Response(
+        JSON.stringify({
+          model: `resolved-${state}`,
+          answers: { risk: { type: "noul", noul: 0.1 } },
+        }),
+      );
+    }) as typeof fetch;
+    const provider = createJevProvider(spec, fetchImpl);
+    const results = await Promise.all(
+      ["first", "second"].map((state) =>
+        provider.evaluate({
+          state,
+          questions: { risk: { kind: "binary", instructions: "Risk?" } },
+        }),
+      ),
+    );
+    expect(results.map((result) => result.resolvedModel)).toEqual([
+      "resolved-first",
+      "resolved-second",
+    ]);
+    expect(results.every((result) => result.requestedModel === "jev-latest")).toBe(true);
   });
 });

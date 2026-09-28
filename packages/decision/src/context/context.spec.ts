@@ -31,6 +31,22 @@ describe("routing step context", () => {
     expect(taskHint([message("first"), message("second")])).toBe("second");
     expect(taskHint([message("abcdef")], 3)).toBe("abc…");
   });
+
+  it("retains accepted task and steering after routing consumes the step", () => {
+    const store = new StepContextStore();
+    const agent = {} as Agent;
+    store.record(agent, 1, 1, { kind: "enter", messages: [message("implement feature")] });
+    store.take(agent, 1, 1);
+    store.record(agent, 1, 2, { kind: "enter", messages: [message("keep the old API")] });
+    expect(store.current(agent)?.messages).toEqual([
+      message("implement feature"),
+      message("keep the old API"),
+    ]);
+    store.record(agent, 2, 1, { kind: "enter", messages: [message("different task")] });
+    expect(store.current(agent)?.messages).toEqual([message("different task")]);
+    store.clear(agent);
+    expect(store.current(agent)).toBeUndefined();
+  });
 });
 
 describe("approval provenance", () => {

@@ -16,11 +16,33 @@ follows [Semantic Versioning](https://semver.org/).
   CI, npm version, and license badges on the repository README.
 - Provider-neutral positioning across the READMEs and community drafts, with
   Jev described as the first adapter and Pi's current Jev binding made explicit.
+- Tag-triggered release workflow (`release.yml`) that runs the full check
+  suite, verifies the tag against all package versions, creates the GitHub
+  release, and publishes the three packages in topological order via npm
+  Trusted Publishers (OIDC) — no `NPM_TOKEN` — with per-package idempotent
+  skips so partially failed runs can simply be re-run.
+- Host-supplied decision context (user request, workspace root, environment,
+  and grants bound to the exact action fingerprint); a risk that cannot be
+  judged for missing context now resolves to review instead of a guess.
+- Judge-side evaluation of tool results for prompt injection, usable secrets,
+  and private data, with truncation reported back to the model.
+- Contextual fixture set (`fixtures-contextual.json`) and an eval core with
+  prompt/policy/privacy/state fingerprints; replay and analyze refuse stale
+  results (exploratory re-scoring only via `--allow-incompatible`) and report
+  calibration and holdout splits separately.
 
 ### Changed
 
-- The experimental enforce warning now describes the small seed-set calibration
-  accurately instead of saying no calibration exists.
+- Upgraded pnpm from 10.17.1 to 11.27.1 (native publish with OIDC trusted
+  publishing support); transitive build scripts are now explicitly declared
+  under `allowBuilds` for pnpm 11's strict build-script policy.
+- Reworked the six built-in risk questions to one factual question per risk
+  with explicit positive and negative criteria; production and live
+  evaluation now share the same outbound redaction pipeline.
+- The archived 2026-09-26 calibration no longer backs the defaults (questions,
+  context, authorization, and actions all changed since); defaults stay
+  experimental until re-evaluated on live results, and the enforce warning
+  now says exactly that.
 
 ## [0.1.0] - 2026-09-26
 

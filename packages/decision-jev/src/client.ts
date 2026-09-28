@@ -112,80 +112,91 @@ function fromWireAnswer(key: string, value: unknown): DecisionAnswer {
  * @param fetchImpl - fetch implementation (injectable for tests).
  * @returns the adapter registered under id `jev`.
  */
-export function createJevAdapter(spec: JevSpec, fetchImpl: typeof fetch = fetch): DecisionAdapter {
+export interface JevEvaluation {
+  readonly answers: Readonly<Record<string, DecisionAnswer>>;
+  /** Actual model reported by the endpoint; absent when it is not provided. */
+  readonly model?: string;
+}
+
+export interface JevAdapter extends DecisionAdapter {
+  evaluateWithMetadata(request: DecisionRequest): Promise<JevEvaluation>;
+}
+
+export function createJevAdapter(spec: JevSpec, fetchImpl: typeof fetch = fetch): JevAdapter {
   const endpoint = `${spec.baseUrl.replace(/\/+$/, "")}/v1/systemone`;
+  const evaluateWithMetadata = async (request: DecisionRequest): Promise<JevEvaluation> => {
+    const body = JSON.stringify({
+      state: request.state,
+      model: spec.model,
+      questions: Object.fromEntries(
+        Object.entries(request.questions).map(([key, question]) => [key, toWireQuestion(question)]),
+      ),
+    });
+    const signal =
+      request.signal === undefined
+        ? AbortSignal.timeout(spec.timeoutMs)
+        : AbortSignal.any([request.signal, AbortSignal.timeout(spec.timeoutMs)]);
+    const ask = async (): Promise<Response> =>
+      fetchImpl(endpoint, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${spec.apiKey}`,
+          "content-type": "application/json",
+        },
+        body,
+        signal,
+      });
+
+    let response = await ask();
+    if (RETRYABLE_STATUS.has(response.status)) {
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      response = await ask();
+    }
+    if (!response.ok) {
+      let detail = "";
+      try {
+        detail = await response.text();
+      } catch {
+        // The status line below already identifies the failure; the body is supplementary.
+      }
+      throw new DecisionError(
+        `jev: HTTP ${response.status}${detail === "" ? "" : ` — ${detail.slice(0, 200)}`}.`,
+        response.status,
+      );
+    }
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch (error) {
+      throw new DecisionError(`jev: response is not JSON (${String(error)}).`);
+    }
+    if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new ProviderValidationError("jev: response must be an object.");
+    }
+    const answers = (payload as { answers?: unknown }).answers;
+    if (answers === null || typeof answers !== "object" || Array.isArray(answers)) {
+      throw new ProviderValidationError("jev: response has no answers object.");
+    }
+    const answerMap = answers as Record<string, unknown>;
+    const mapped: Record<string, DecisionAnswer> = {};
+    for (const key of Object.keys(request.questions)) {
+      const answer = answerMap[key];
+      if (answer === undefined)
+        throw new ProviderValidationError(`jev: answer missing for question "${key}".`);
+      const mappedAnswer = fromWireAnswer(key, answer);
+      validateAnswer(key, request.questions[key]!, mappedAnswer);
+      mapped[key] = mappedAnswer;
+    }
+    const model = (payload as { model?: unknown }).model;
+    if (model !== undefined && (typeof model !== "string" || model.trim() === "")) {
+      throw new ProviderValidationError("jev: response model must be a non-empty string.");
+    }
+    return { answers: mapped, ...(typeof model === "string" ? { model } : {}) };
+  };
   return {
     id: "jev",
-    // No provider/model/domain calibration evidence is bundled with this package.
-    // An operator may still opt out via approval.requireCalibrated, explicitly.
     calibrated: false,
-    async evaluate(request: DecisionRequest): Promise<Readonly<Record<string, DecisionAnswer>>> {
-      const body = JSON.stringify({
-        state: request.state,
-        model: spec.model,
-        questions: Object.fromEntries(
-          Object.entries(request.questions).map(([key, question]) => [
-            key,
-            toWireQuestion(question),
-          ]),
-        ),
-      });
-      const signal =
-        request.signal === undefined
-          ? AbortSignal.timeout(spec.timeoutMs)
-          : AbortSignal.any([request.signal, AbortSignal.timeout(spec.timeoutMs)]);
-      const ask = async (): Promise<Response> =>
-        fetchImpl(endpoint, {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${spec.apiKey}`,
-            "content-type": "application/json",
-          },
-          body,
-          signal,
-        });
-
-      let response = await ask();
-      if (RETRYABLE_STATUS.has(response.status)) {
-        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-        response = await ask();
-      }
-      if (!response.ok) {
-        let detail = "";
-        try {
-          detail = await response.text();
-        } catch {
-          // The status line below already identifies the failure; the body is supplementary.
-        }
-        throw new DecisionError(
-          `jev: HTTP ${response.status}${detail === "" ? "" : ` — ${detail.slice(0, 200)}`}.`,
-          response.status,
-        );
-      }
-      let payload: unknown;
-      try {
-        payload = await response.json();
-      } catch (error) {
-        throw new DecisionError(`jev: response is not JSON (${String(error)}).`);
-      }
-      if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
-        throw new ProviderValidationError("jev: response must be an object.");
-      }
-      const answers = (payload as { answers?: unknown }).answers;
-      if (answers === null || typeof answers !== "object" || Array.isArray(answers)) {
-        throw new ProviderValidationError("jev: response has no answers object.");
-      }
-      const answerMap = answers as Record<string, unknown>;
-      const mapped: Record<string, DecisionAnswer> = {};
-      for (const key of Object.keys(request.questions)) {
-        const answer = answerMap[key];
-        if (answer === undefined)
-          throw new ProviderValidationError(`jev: answer missing for question "${key}".`);
-        const mappedAnswer = fromWireAnswer(key, answer);
-        validateAnswer(key, request.questions[key]!, mappedAnswer);
-        mapped[key] = mappedAnswer;
-      }
-      return mapped;
-    },
+    evaluate: async (request) => (await evaluateWithMetadata(request)).answers,
+    evaluateWithMetadata,
   };
 }

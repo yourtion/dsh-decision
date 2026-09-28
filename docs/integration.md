@@ -69,7 +69,7 @@ fi
 
 在 `shadow` 中，工具立即继续；只有 `review`、`deny` 或请求失败会写 stderr 日志，`allow` 不输出判定日志。在 `enforce` 中，`allow` 继续，`deny` 阻断，`review` 也阻断并提示人工复核，因为 pi 没有可移交的审批链。失败策略中的 `ask` 同样映射为阻断。`PI_DECISION_ON_FAILURE` 不影响缺 key 的加载错误。
 
-**`enforce` 是实验特性。** 默认阈值来自 2026-09-26 的一次 live 评估（22 个标注用例，见[阈值评估](#阈值评估)），样本量小、未做跨日稳定性验证；enforce 启动时扩展会向 stderr 打一条警告。每次判定（shadow 和 enforce 都）会写一条 sanitized 审计记录到 `PI_DECISION_AUDIT_PATH`，内容只有判定、概率、policyVersion、脱敏计数和粗粒度错误类别，不含工具参数原文。
+**`enforce` 是实验特性。** 当前问题、上下文和策略尚无足够 live 评估来校准；旧版 22 个用例与结果不能代表当前行为。缺少用户请求或工作区边界时，依赖这些信息的风险会转为人工复核。外部副作用高分默认要求复核，单靠用户请求文本不会生成精确动作授权；内置 dsh 与 pi 集成尚未连接授权授予 UI。启用时扩展会向 stderr 打一条警告。每次判定（shadow 和 enforce 都）会写一条 sanitized 审计记录到 `PI_DECISION_AUDIT_PATH`，内容只有判定、概率、policyVersion、脱敏计数和粗粒度错误类别，不含工具参数原文。
 
 2026-09-26 的完整 pi 冒烟（pi 0.87.1、`zai-coding-cn/glm-5.3-flash` 主模型）：模型调用一次 `read README.md`，工具成功返回，最终回复 `# @techs/dsh-decision`。Jev shadow 给出的 `secretExposure` 概率为 0.19/0.18——这正是重校前的旧阈值（复核线 0.15）下的典型只读误报；重校后该类调用按默认阈值放行。pi 包当前没有环境变量形式的阈值配置，需要覆盖时在 dsh 侧或代码内配置。
 
@@ -115,12 +115,13 @@ audit:
 guardrail:
   enabled: true
   onFailure: allow # Jev 请求失败时 allow | ask | deny
-  # risks: # 省略时使用重校后的内置默认（2026-09-26 评估得出）
+  # risks: # 省略时使用实验性内置默认；先运行当前版评估
   #   secretExposure: { reviewAt: 0.55, denyAt: 0.85 }
   #   destructive: { reviewAt: 0.45, denyAt: 0.55 }
   #   scopeViolation: { enabled: false } # 一等关闭：不发问、不判定、不出站
-  #   externalSideEffect: # 措辞覆盖（改动后必须整组重校，见 docs/eval.md）
-  #     instructions: "Does this tool call publish anything publicly?"
+  #   externalSideEffect: # 改写问题或 criteria 后重新采集评估数据
+  #     instructions: "Does this action send a message or upload data?"
+  #     criteria: { true: "Sends or uploads data.", false: "Only performs a read or local edit." }
   # customRisks: # 用户自定义维度，追加在内置之后；与内置同权参与聚合
   #   financialExposure:
   #     instructions: "Could this tool call move money or initiate irreversible financial transactions?"
@@ -155,16 +156,16 @@ dsh plugin --profile web add "file:$(pwd)/packages/decision" "file:$(pwd)/packag
 
 两个包从 0.1.1 起各自声明 `dsh.bundle`；dsh 安装时会将决策层和 Jev adapter 的 patch 加入 profile，无需复制示例 patch。包内 patch 默认使用 Gateway、`AI_GATEWAY_API_KEY`、`shadow` 和原生权限模式。key 必须对启动 dsh 的进程可见；本机将其放在权限为 600 的 `~/.dsh/.env`。安装后重启 Web 进程。要启用机器审批、路由等配置，再参考[示例 patch](../profile/cordis.patch.yml) 在 `~/.dsh/profiles/web/cordis.patch.yml` 中覆盖相应插件行。
 
-### 验证范围（2026-09-26）
+### 验证范围
 
-| 路径             | 已验证                                                                                                                               | 尚未做端到端验证                           |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
-| 独立 dsh profile | `glm-5.3-flash` 真实工具调用；shadow 下工具继续执行；临时 enforce patch 触发 guardrail 拒绝，session 日志记录原因                    | 路由、结果 judge、人工审批 UI              |
-| dsh Web profile  | 插件进入配置并成功启动本地 HTTP 服务；未认证请求返回 401                                                                             | 浏览器对话触发工具和审批                   |
-| Jev Gateway      | 真实请求返回有效判断；guardrail 一次请求取得六维答案；首次阈值校准（22 个标注用例，误阻断 0%、deny 漏放 0%，见 [评估方法](eval.md)） | 长期误判率、跨日稳定性与更大标注集下的复测 |
-| pi 扩展          | Flash 主模型调用只读工具，Jev shadow 完成判断；enforce 的 allow/review/deny 和失败策略有自动化测试                                   | 真实交互中的人工复核体验                   |
+| 路径             | 已验证                                                                                                                         | 尚未做端到端验证                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| 独立 dsh profile | `glm-5.3-flash` 真实工具调用；shadow 下工具继续执行；临时 enforce patch 触发 guardrail 拒绝，session 日志记录原因              | 路由、结果 judge、人工审批 UI                                  |
+| dsh Web profile  | 插件进入配置并成功启动本地 HTTP 服务；未认证请求返回 401                                                                       | 浏览器对话触发工具和审批                                       |
+| Jev Gateway      | 真实请求返回有效判断；guardrail 一次请求取得六维答案；旧版 22 样本结果已归档，不能校准当前问题和策略（见 [评估方法](eval.md)） | 当前提示词与策略的重复评估、长期误判率、跨日稳定性与更大标注集 |
+| pi 扩展          | Flash 主模型调用只读工具，Jev shadow 完成判断；enforce 的 allow/review/deny 和失败策略有自动化测试                             | 真实交互中的人工复核体验                                       |
 
-`pnpm run typecheck`、`pnpm run test`（86 个测试）、`pnpm run lint` 和 `pnpm run fmt` 均已通过，GitHub Actions 在 push/PR 上运行同一组检查。Routing、Judge、Machine Approval 的主要分支由 Cordis waterfall 集成测试覆盖，但示例 profile 默认未开启 Routing/Judge，不能把这些测试等同于真实 Web 会话验证。相关设计与风险取舍见 [设计文档](design.md) 和 [v2 计划](v2-plan.md)。
+`pnpm run typecheck`、`pnpm run test`、`pnpm run lint` 和 `pnpm run fmt` 是本地检查命令；GitHub Actions 在 push/PR 上运行同一组检查。Routing、Judge、Machine Approval 的主要分支由 Cordis waterfall 集成测试覆盖，但示例 profile 默认未开启 Routing/Judge，不能把这些测试等同于真实 Web 会话验证。相关设计与风险取舍见 [设计文档](design.md) 和 [v2 计划](v2-plan.md)。
 
 ## 隐私与审计
 
@@ -180,17 +181,20 @@ dsh plugin --profile web add "file:$(pwd)/packages/decision" "file:$(pwd)/packag
 
 ```sh
 pnpm run build
-AI_GATEWAY_API_KEY=... pnpm run eval            # 真实调用 Jev，写 eval/results-<date>.json
-pnpm --filter @techs/dsh-decision-jev run eval --replay packages/decision-jev/eval/results-<date>.json  # 离线重放
+AI_GATEWAY_API_KEY=... node packages/decision-jev/eval/run-eval.mjs --repeat 3 --out packages/decision-jev/eval/results-current.json
+node packages/decision-jev/eval/run-eval.mjs --replay packages/decision-jev/eval/results-current.json
+node packages/decision-jev/eval/analyze.mjs packages/decision-jev/eval/results-current.json
 ```
 
-live 模式对 `fixtures.json` 里的人工标注用例（良性/破坏性/外传/提权/敏感读取）逐个求六维概率并落盘（请求间隔默认 400ms，`EVAL_DELAY_MS` 可调；429/5xx 逐用例退避重试，中断保留已完成部分）；replay 模式不碰 API，输出当前默认阈值的混淆矩阵、误判清单，以及统一阈值网格的 Pareto 前沿。`eval:analyze` 输出逐维分离度报告和边际感知的阈值提案（可直接粘贴进配置）。换环境或换模型的自助校准流程、指标定义和 `externalSideEffect` 提问改写案例见 [评估方法](eval.md)。
+live 模式默认使用 `fixtures-contextual.json`，对带用户请求、工作区和可选精确 host grant 的人工标注样本逐个求六维概率并落盘（请求间隔默认 400ms，`EVAL_DELAY_MS` 可调；429/5xx 逐样本退避重试，中断保留已完成部分）。replay 不碰 API，按 calibration 与 holdout 分开报告混淆矩阵和误判；`eval:analyze` 只用 calibration 提案阈值，再单独报告 holdout，并按各风险维度的 true/false 标签统计分离度，未知标签不会当作 false。样本少时这些结果只能帮助发现问题，不能证明生产准确率。更多流程见 [评估方法](eval.md)。
 
-**2026-09-26 校准记录**（`typesafe-ai/jev`，22 用例，两轮）：第一轮暴露旧阈值良性误阻断 75%，重校后 0%/漏放 0%；第二轮修复 `externalSideEffect` 提问措辞的倒挂（工作区写入 0.74 > 群发邮件 0.71）后整组重校，最终误阻断 0%、漏放 0%、deny 软化 0，边际 ≥0.05。原始概率在 `eval/results-2026-09-26.json`（改写后）与 `eval/results-2026-09-26-original-instructions.json`（改写前基线），可用 replay/analyze 复核。
+**2026-09-26 旧版记录**（`typesafe-ai/jev`，22 用例，两轮）仅用于说明历史问题措辞的边界：旧 `externalSideEffect` 问题曾将工作区写入打成 0.74，高于群发邮件的 0.71。之后问题、criteria、上下文、授权判定和动作策略均发生变化。归档概率可供 exploratory replay，但不能据此声称当前提示词或默认阈值已校准；具体限制见[评估说明](eval.md)。
 
 ## 开发与分发
 
-`packages/decision` 提供不引入 Cordis/Schemastery 运行时依赖的 `./kernel` 子路径，`packages/decision-jev` 提供 `./provider` 和 `./spec` 子路径，pi 扩展只在类型位置导入 pi 的 `ExtensionAPI`。本地 `pi -e` 和 `pi install ./packages/pi-decision` 依赖 pnpm workspace 链接；npm 发布用 `pnpm -r publish --access public`，`workspace:` 版本会按依赖拓扑顺序自动替换为实际版本（发布顺序 decision → decision-jev → pi-decision）。发布后使用 `pi install npm:@techs/pi-decision` 或 `dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev`，不依赖本地仓库。发布前应分别用 npm tarball 在干净的 pi 和 dsh profile 中验证安装。
+`packages/decision` 提供不引入 Cordis/Schemastery 运行时依赖的 `./kernel` 子路径，`packages/decision-jev` 提供 `./provider` 和 `./spec` 子路径，pi 扩展只在类型位置导入 pi 的 `ExtensionAPI`。本地 `pi -e` 和 `pi install ./packages/pi-decision` 依赖 pnpm workspace 链接（pnpm 版本由根 `package.json` 的 `packageManager` 锁定为 11.27.1，11 的原生 `pnpm publish` 支持 npm Trusted Publishing）。
+
+发布是全自动的：把三个包 bump 到同一版本、提交后推 tag `vX.Y.Z`，`.github/workflows/release.yml` 会跑完整校验、校验 tag 与所有 `packages/*/package.json` 版本一致、创建 GitHub release，然后按拓扑序（decision → decision-jev → pi-decision）逐包 `pnpm publish --no-git-checks`，`workspace:` 版本自动替换为实际版本；逐包幂等跳过已发布版本，部分失败可直接重跑同一 workflow。npm 认证走 OIDC Trusted Publishers，不需要 `NPM_TOKEN`；前提是在 npmjs.com 后台为三个包各绑定一条 Trusted Publisher，内容须与 workflow 完全一致（大小写敏感）：仓库 `yourtion/dsh-decision`、workflow filename `release.yml`、不填 environment。Trusted publishing 未绑定或 CI 不可用时，回退手工发布：从各包目录按拓扑序单独 `pnpm publish --no-git-checks`（不要从根重跑 `pnpm -r publish`，会在已发布的包上报错中断）。发布后使用 `pi install npm:@techs/pi-decision` 或 `dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev`，不依赖本地仓库。发布前应分别用 npm tarball 在干净的 pi 和 dsh profile 中验证安装。
 
 接入其他概率判断模型时，实现 `@techs/dsh-decision` 的 `JudgmentProvider`，把该模型的请求与响应映射为具名的 `JudgmentRequest` / `JudgmentResult`，声明支持的 binary、categorical、ordinal 问题类型，并注册到 `ctx.decision`：
 
@@ -203,4 +207,4 @@ export function apply(ctx: Context): void {
 
 在 dsh profile 中安装新 provider 插件，并把 `decision.config.provider` 设为它注册的 `id`；所启用切面需要的问题类型必须由它支持。是否使用 Jev 的 TypeSafe System One wire 格式只影响 adapter 实现，不影响核心策略。现有 pi 包的入口直接调用 `createJevProvider()`，所以不能只改环境变量就切换到其他模型；要给 pi 增加对应 adapter 的创建与选择逻辑。
 
-旧的 `DecisionAdapter` 仍可通过 `registerAdapter()` 注册，但它的 `calibrated` 布尔值不授予 v2 自动审批资格。发往外部 API 的 state 默认经本地脱敏（见[隐私与审计](#隐私与审计)），未识别的私密内容仍可能发出。内置风险阈值只在 Jev 的 22 个种子用例上初步校准；换模型后要用[评估工作台](#阈值评估)重新标定，在 `shadow` 下观察实际误判率，再考虑 `enforce`。
+旧的 `DecisionAdapter` 仍可通过 `registerAdapter()` 注册，但它的 `calibrated` 布尔值不授予 v2 自动审批资格。发往外部 API 的 state 默认经本地脱敏（见[隐私与审计](#隐私与审计)），未识别的私密内容仍可能发出。当前默认阈值尚未被当前版提示词与策略校准；换模型或修改问题后都应使用[评估工作台](#阈值评估)重新采集，在 `shadow` 下观察实际误判率，再考虑 `enforce`。

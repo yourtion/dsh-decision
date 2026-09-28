@@ -17,6 +17,8 @@ const agent = {} as Agent;
 const signal = new AbortController().signal;
 const message = (text: string): UserMessage =>
   ({ content: [{ type: "text", text }] }) as UserMessage;
+const committedUserMessage = (text: string): UserMessage =>
+  ({ role: "user", content: [{ type: "text", text }] }) as UserMessage;
 
 async function layer(
   config: ConstructorParameters<typeof DecisionLayer>[1],
@@ -31,6 +33,177 @@ async function layer(
 }
 
 describe("DSH event seam integration", () => {
+  it("sends accepted task context and criteria without routing, redacting the whole state", async () => {
+    let requestSeen: import("./judgment.js").JudgmentRequest | undefined;
+    const scopedAgent = {
+      id: "context-agent",
+      session: { header: { cwd: "/workspace" }, deriveMessages: () => [] },
+    } as unknown as Agent;
+    const ctx = await layer({ mode: "enforce", audit: { enabled: false } }, undefined, {
+      id: "jev",
+      capabilities: () => ({ binary: true, categorical: false, ordinal: false }),
+      evaluate: async (request) => {
+        requestSeen = request;
+        return {
+          provider: "jev",
+          answers: Object.fromEntries(
+            Object.keys(request.questions).map((key) => [
+              key,
+              { kind: "binary", probability: 0.01 },
+            ]),
+          ),
+        };
+      },
+    });
+    try {
+      await ctx.waterfall(
+        "agent/pre-step",
+        { agent: scopedAgent, turn: 1, step: 1, messages: [], signal },
+        async () => ({
+          kind: "enter",
+          messages: [message("Read the README. Bearer very-secret-value-123456789")],
+        }),
+      );
+      const outcome = await ctx.waterfall(
+        "tools/pre-execute",
+        { agent: scopedAgent, name: "read", arguments: { path: "README.md" }, signal },
+        async () => ({ kind: "allow" }),
+      );
+      expect(outcome.kind).toBe("allow");
+      expect(requestSeen?.state).toMatchObject({
+        workspaceRoot: "/workspace",
+        userRequest: expect.stringContaining("Read the README"),
+      });
+      expect(JSON.stringify(requestSeen)).not.toContain("very-secret-value");
+      expect(requestSeen?.questions.destructive).toMatchObject({
+        criteria: { true: expect.any(String), false: expect.any(String) },
+      });
+      expect(requestSeen?.questions.scopeViolation).toBeDefined();
+    } finally {
+      await ctx.fiber.dispose();
+    }
+  });
+
+  it("keeps committed task context across a continuation and excludes unaccepted inbox text", async () => {
+    let requestSeen: import("./judgment.js").JudgmentRequest | undefined;
+    const scopedAgent = {
+      id: "continued-context-agent",
+      session: {
+        header: { cwd: "/workspace" },
+        deriveMessages: () => [committedUserMessage("Refactor the settings loader safely")],
+      },
+    } as unknown as Agent;
+    const ctx = await layer({ mode: "enforce", audit: { enabled: false } }, undefined, {
+      id: "jev",
+      capabilities: () => ({ binary: true, categorical: false, ordinal: false }),
+      evaluate: async (request) => {
+        requestSeen = request;
+        return {
+          provider: "jev",
+          answers: Object.fromEntries(
+            Object.keys(request.questions).map((key) => [
+              key,
+              { kind: "binary", probability: 0.01 },
+            ]),
+          ),
+        };
+      },
+    });
+    try {
+      await ctx.waterfall(
+        "agent/pre-step",
+        {
+          agent: scopedAgent,
+          turn: 2,
+          step: 1,
+          messages: [message("Continue: update the loader tests")],
+          signal,
+        },
+        async () => ({
+          kind: "enter",
+          messages: [message("Continue: update the loader tests")],
+        }),
+      );
+      await ctx.waterfall(
+        "tools/pre-execute",
+        { agent: scopedAgent, name: "edit", arguments: { path: "loader.ts" }, signal },
+        async () => ({ kind: "allow" }),
+      );
+      const task = requestSeen?.state.userRequest as string;
+      expect(task).toContain("Refactor the settings loader safely");
+      expect(task).toContain("Continue: update the loader tests");
+      expect(task).not.toContain("unaccepted inbox text");
+    } finally {
+      await ctx.fiber.dispose();
+    }
+  });
+
+  it("reviews absent scope locally when it is the only enabled risk", async () => {
+    const evaluate = vi.fn();
+    const disabled = Object.fromEntries(
+      GUARDRAIL_RISKS.filter((risk) => risk !== "scopeViolation").map((risk) => [
+        risk,
+        { enabled: false },
+      ]),
+    );
+    const ctx = await layer(
+      { mode: "enforce", audit: { enabled: false }, guardrail: { risks: disabled } },
+      undefined,
+      {
+        id: "jev",
+        capabilities: () => ({ binary: true, categorical: false, ordinal: false }),
+        evaluate,
+      },
+    );
+    try {
+      const outcome = await ctx.waterfall(
+        "tools/pre-execute",
+        { name: "read", arguments: { path: "README.md" }, signal },
+        async () => ({ kind: "allow" }),
+      );
+      expect(outcome.kind).toBe("ask");
+      expect(evaluate).not.toHaveBeenCalled();
+    } finally {
+      await ctx.fiber.dispose();
+    }
+  });
+
+  it("blocks original secrets even when the outbound judge copy is redacted", async () => {
+    const ctx = await layer(
+      {
+        mode: "enforce",
+        audit: { enabled: false },
+        guardrail: { enabled: false },
+        judge: { enabled: true },
+      },
+      undefined,
+      {
+        id: "jev",
+        capabilities: () => ({ binary: true, categorical: false, ordinal: false }),
+        evaluate: async (request) => ({
+          provider: "jev",
+          answers: Object.fromEntries(
+            Object.keys(request.questions).map((key) => [
+              key,
+              { kind: "binary", probability: 0.01 },
+            ]),
+          ),
+        }),
+      },
+    );
+    try {
+      const result = await ctx.waterfall(
+        "tools/post-execute",
+        { name: "read", arguments: {}, signal },
+        { content: [{ type: "text", text: "Authorization: Bearer private-token-1234567890" }] },
+        async () => ({ kind: "accept" }),
+      );
+      expect(result.kind).toBe("block");
+    } finally {
+      await ctx.fiber.dispose();
+    }
+  });
+
   it("routes from the final accepted pre-step messages for the matching step", async () => {
     let seenTask: unknown;
     const ctx = await layer(
@@ -40,8 +213,8 @@ describe("DSH event seam integration", () => {
         routing: {
           enabled: true,
           routes: [
-            { key: "small", model: "small" },
-            { key: "large", model: "large" },
+            { key: "small", model: "small", description: "Small local edits" },
+            { key: "large", model: "large", description: "Complex cross-module reasoning" },
           ],
         },
       },
@@ -129,7 +302,10 @@ describe("DSH event seam integration", () => {
           return {
             provider: "jev",
             model: "qualified-model",
-            answers: { allow: { kind: "binary", probability: 0.99 } },
+            answers: {
+              withinScope: { kind: "binary", probability: 0.99 },
+              reasonMatchesAction: { kind: "binary", probability: 0.99 },
+            },
           };
         },
       },
@@ -153,7 +329,7 @@ describe("DSH event seam integration", () => {
         { agent, toolName: "bash", reason: "native policy", signal },
         async () => "rejected",
       );
-      expect(nativeOutcome).toBe("allowed-once");
+      expect(nativeOutcome).toBe("rejected");
       expect(approvalCalls).toBe(1);
     } finally {
       await ctx.fiber.dispose();
@@ -168,7 +344,10 @@ describe("DSH event seam integration", () => {
     const ctx = await layer(
       {
         mode: "shadow",
-        routing: { enabled: true, routes: [{ key: "large", model: "large" }] },
+        routing: {
+          enabled: true,
+          routes: [{ key: "large", model: "large", description: "Complex cross-module reasoning" }],
+        },
         judge: { enabled: true },
         approval: { enabled: true },
       },
@@ -218,7 +397,10 @@ describe("DSH event seam integration", () => {
     const adapter: DecisionAdapter = {
       id: "jev",
       calibrated: true, // The legacy boolean is deliberately insufficient in v2.
-      evaluate: async () => ({ allow: { kind: "noul", probability: 0.99 } }),
+      evaluate: async () => ({
+        withinScope: { kind: "noul", probability: 0.99 },
+        reasonMatchesAction: { kind: "noul", probability: 0.99 },
+      }),
     };
     for (const uncertain of ["human", "deny"] as const) {
       const ctx = await layer(
@@ -320,7 +502,10 @@ describe("DSH event seam integration", () => {
         permission: "native",
         enforcement: "enforce",
         guardrail: { enabled: false },
-        routing: { enabled: true, routes: [{ key: "large", model: "large" }] },
+        routing: {
+          enabled: true,
+          routes: [{ key: "large", model: "large", description: "Complex cross-module reasoning" }],
+        },
         judge: { enabled: true },
       },
       undefined,
@@ -347,7 +532,8 @@ describe("DSH event seam integration", () => {
                 model: "test-model",
                 answers: {
                   injection: { kind: "binary", probability: 0.9 },
-                  exposure: { kind: "binary", probability: 0 },
+                  secretExposure: { kind: "binary", probability: 0 },
+                  privacyExposure: { kind: "binary", probability: 0 },
                 },
               },
       },
@@ -453,7 +639,7 @@ describe("DSH event seam integration", () => {
         async () => ({ kind: "allow" }),
       );
       expect(JSON.stringify(seen[0])).not.toContain("abcdefgh12345678");
-      expect(seen[0]).toEqual({
+      expect(seen[0]).toMatchObject({
         tool: "bash",
         arguments: { command: "deploy", api_key: "[REDACTED:key]" },
       });
@@ -501,7 +687,7 @@ describe("DSH event seam integration", () => {
         action: "deny",
         redactions: 1,
       });
-      expect(String(record.policyVersion)).toContain("guardrail-v2.1.0");
+      expect(String(record.policyVersion)).toContain("guardrail-v3.0.0-experimental");
       expect(JSON.stringify(record)).not.toContain("rm -rf");
       expect(JSON.stringify(record)).not.toContain("very-secret-token");
       await vi.waitFor(() => expect(existsSync(path)).toBe(true), { timeout: 5_000 });

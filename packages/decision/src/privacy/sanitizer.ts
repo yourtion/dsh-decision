@@ -9,6 +9,9 @@
 /** `redact` masks detected secrets; `raw` restores the v1 send-as-is stance. */
 export type OutboundPrivacy = "redact" | "raw";
 
+/** Bump whenever masking rules change so stored evaluations cannot silently drift. */
+export const OUTBOUND_PRIVACY_VERSION = "secret-redaction-v1";
+
 export interface RedactionResult<T> {
   readonly value: T;
   readonly count: number;

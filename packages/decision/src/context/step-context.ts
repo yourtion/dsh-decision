@@ -10,6 +10,7 @@ export interface StepDecisionContext {
 /** A pre-step result is authoritative only when the step was admitted. */
 export class StepContextStore {
   readonly #byAgent = new WeakMap<Agent, Map<string, StepDecisionContext>>();
+  readonly #current = new WeakMap<Agent, StepDecisionContext>();
 
   record(
     agent: Agent,
@@ -23,8 +24,15 @@ export class StepContextStore {
     // Keep only this agent's current admitted step, so stale messages cannot route it.
     if (decision.kind !== "enter") {
       this.#byAgent.delete(agent);
+      this.#current.delete(agent);
       return;
     }
+    const previous = this.#current.get(agent);
+    this.#current.set(agent, {
+      turn,
+      step,
+      messages: [...(previous?.turn === turn ? previous.messages : []), ...decision.messages],
+    });
     this.#byAgent.set(
       agent,
       new Map([[`${turn}:${step}`, { turn, step, messages: [...decision.messages] }]]),
@@ -42,6 +50,12 @@ export class StepContextStore {
 
   clear(agent: Agent): void {
     this.#byAgent.delete(agent);
+    this.#current.delete(agent);
+  }
+
+  /** Accepted task and steering survive routing's one-shot read for this step. */
+  current(agent: Agent): StepDecisionContext | undefined {
+    return this.#current.get(agent);
   }
 }
 

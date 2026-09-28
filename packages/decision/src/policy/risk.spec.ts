@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BUILTIN_RISK_INSTRUCTIONS,
+  BUILTIN_RISK_CRITERIA,
   DEFAULT_GUARDRAIL_RISKS,
   GUARDRAIL_RISKS,
   defaultRiskDefinitions,
@@ -16,7 +17,9 @@ describe("resolveGuardrailRisks", () => {
     expect(risks[0]).toEqual({
       key: "destructive",
       instructions: BUILTIN_RISK_INSTRUCTIONS.destructive,
+      criteria: BUILTIN_RISK_CRITERIA.destructive,
       ...DEFAULT_GUARDRAIL_RISKS.destructive,
+      highAction: "deny",
     });
     expect(policyVersion).toBe(guardrailPolicyVersion(risks));
   });
@@ -119,6 +122,20 @@ describe("guardrailPolicyVersion", () => {
     const version = guardrailPolicyVersion(base);
     expect(guardrailPolicyVersion(reworded)).not.toBe(version);
     expect(guardrailPolicyVersion(rethreshed)).not.toBe(version);
+    expect(
+      guardrailPolicyVersion(
+        base.map((risk) =>
+          risk.key === "destructive" ? { ...risk, criteria: { true: "different" } } : risk,
+        ),
+      ),
+    ).not.toBe(version);
+    expect(
+      guardrailPolicyVersion(
+        base.map((risk) =>
+          risk.key === "destructive" ? { ...risk, highAction: "review" as const } : risk,
+        ),
+      ),
+    ).not.toBe(version);
     expect(guardrailPolicyVersion(defaultRiskDefinitions())).toBe(version);
   });
 
@@ -132,6 +149,93 @@ describe("guardrailPolicyVersion", () => {
         { key: "financialExposure", instructions: "money?", reviewAt: 0.3, denyAt: 0.7 },
       ]),
     ).not.toBe(guardrailPolicyVersion(base));
+  });
+});
+
+describe("risk semantics", () => {
+  it("routes external effects to review even at high probability", () => {
+    const { risks } = resolveGuardrailRisks({});
+    const values = Object.fromEntries(
+      risks.map((risk) => [risk.key, risk.key === "externalSideEffect" ? 0.99 : 0]),
+    );
+    expect(evaluateGuardrailPolicy(values, risks).action).toBe("review");
+    expect(evaluateGuardrailPolicy({ ...values, privacyExposure: 0.99 }, risks).action).toBe(
+      "deny",
+    );
+  });
+
+  it("allows a matching authorized side effect without suppressing a hard risk", () => {
+    const { risks } = resolveGuardrailRisks({});
+    const values = Object.fromEntries(
+      risks.map((risk) => [risk.key, risk.key === "externalSideEffect" ? 0.99 : 0]),
+    );
+    expect(
+      evaluateGuardrailPolicy(values, risks, { authorizedExternalSideEffect: true }).action,
+    ).toBe("allow");
+    expect(
+      evaluateGuardrailPolicy({ ...values, secretExposure: 0.99 }, risks, {
+        authorizedExternalSideEffect: true,
+      }).action,
+    ).toBe("deny");
+  });
+
+  it("reviews missing context unless a separate hard risk denies", () => {
+    const { risks } = resolveGuardrailRisks({});
+    const values = Object.fromEntries(
+      risks.filter((risk) => risk.key !== "scopeViolation").map((risk) => [risk.key, 0]),
+    );
+    expect(
+      evaluateGuardrailPolicy(values, risks, { unknownRisks: ["scopeViolation"] }).action,
+    ).toBe("review");
+    expect(
+      evaluateGuardrailPolicy({ ...values, destructive: 0.99 }, risks, {
+        unknownRisks: ["scopeViolation"],
+      }).action,
+    ).toBe("deny");
+    expect(() => evaluateGuardrailPolicy(values, risks, { unknownRisks: ["destructive"] })).toThrow(
+      /cannot be marked unknown/,
+    );
+  });
+
+  it("validates criteria and high action overrides", () => {
+    expect(() =>
+      resolveGuardrailRisks({ risks: { destructive: { criteria: { true: " " } } } }),
+    ).toThrow(/criteria/);
+    for (const criteria of [null, "x", [], { true: "yes", false: "no", maybe: "unknown" }]) {
+      expect(() =>
+        resolveGuardrailRisks({ risks: { destructive: { criteria } } } as never),
+      ).toThrow(/criteria/);
+    }
+    expect(() =>
+      resolveGuardrailRisks({ risks: { destructive: { highAction: "allow" as never } } }),
+    ).toThrow(/highAction/);
+    const { risks } = resolveGuardrailRisks({ risks: { destructive: { highAction: "review" } } });
+    expect(risks[0]?.highAction).toBe("review");
+  });
+
+  it("does not inherit builtin criteria that contradict custom instructions", () => {
+    const { risks } = resolveGuardrailRisks({
+      risks: { destructive: { instructions: "Could this action make a reversible change?" } },
+    });
+    expect(risks[0]?.instructions).toBe("Could this action make a reversible change?");
+    expect(risks[0]?.criteria).toBeUndefined();
+    expect(
+      resolveGuardrailRisks({ risks: { destructive: { criteria: {} as never } } }).risks[0]
+        ?.criteria,
+    ).toEqual(BUILTIN_RISK_CRITERIA.destructive);
+  });
+
+  it("keeps built-in questions within their intended boundaries", () => {
+    const { risks } = resolveGuardrailRisks({});
+    const risk = (key: string) => risks.find((item) => item.key === key)!;
+    expect(risk("destructive").instructions).toMatch(/irreversible|not readily recoverable/i);
+    expect(risk("destructive").criteria?.false).toMatch(/recoverable/i);
+    expect(risk("secretExposure").criteria?.false).toMatch(/no secret/i);
+    expect(risk("externalSideEffect").instructions).not.toMatch(/outside.*or send data/i);
+    expect(risk("externalSideEffect").criteria?.true).toMatch(/message|upload|publish|mutate/i);
+    expect(risk("externalSideEffect").criteria?.false).toMatch(/GET/i);
+    expect(risk("privilegeEscalation").instructions).toMatch(/broaden/i);
+    expect(risk("privilegeEscalation").criteria?.false).toMatch(/narrows/i);
   });
 });
 

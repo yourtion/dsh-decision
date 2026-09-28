@@ -57,7 +57,7 @@ pi -e ./packages/pi-decision --no-session --tools read \
   'Use the read tool exactly once to read README.md, then reply with only its first Markdown heading.'
 ```
 
-示例中的 `zai-coding-cn/glm-5.3-flash` 是本仓库实际冒烟时可用的**主模型**；请按自己的 pi 凭证替换。Jev key 能让扩展判断工具，不会自动为 pi 的主模型提供凭证。早期冒烟中，模型调用了一次 `read` 并成功回答标题，旧阈值曾把该读取判为 `review`；重校后默认阈值已调整，仍建议先在 shadow 中观察真实误判。完整命令、环境变量和结果见 [接入与验证说明](docs/integration.md)。
+示例中的 `zai-coding-cn/glm-5.3-flash` 是本仓库实际冒烟时可用的**主模型**；请按自己的 pi 凭证替换。Jev key 能让扩展判断工具，不会自动为 pi 的主模型提供凭证。早期冒烟中，模型调用了一次 `read` 并成功回答标题，当时的阈值曾把该读取判为 `review`。当前问题和上下文已变化，尚无对应的 live Jev 校准结果，应先在 shadow 中观察真实误判。完整命令、环境变量和结果见 [接入与验证说明](docs/integration.md)。
 
 ## 从仓库接入 dsh
 
@@ -93,4 +93,6 @@ pnpm run fmt       # oxfmt --check
 
 ## 阈值与校准现状
 
-内置六维可以逐维覆盖阈值、改写措辞或一等关闭（不发问、不判定、不出站），也可通过 `guardrail.customRisks`（pi 用 `PI_DECISION_RISKS`）追加自定义维度——与内置同权参与聚合，一起打包进同一次判断请求。六维默认阈值来自 2026-09-26 的 live 评估（22 个人工标注用例，`typesafe-ai/jev`）：旧阈值下良性误阻断 75%，重校后 **误阻断 0%、deny 漏放 0%、deny 软化为转人工 0**，全部阈值与最近良性分数保持 ≥0.05 边际。校准过程包含一次提问措辞修复——旧 `externalSideEffect` 措辞把写工作区文件（0.74）打得比群发邮件（0.71）还高，改写并限定"会话外可见"语义后倒挂消除（良性最大分降至 0.13）。**阈值与提问措辞是成对校准的**，换模型或改问题都要重跑。方法、指标定义、`externalSideEffect` 调参案例和换环境流程见 [评估方法](docs/eval.md)，工具用法见 `pnpm run eval`（[说明](docs/integration.md#阈值评估)）。样本仍是种子集：`enforce` 的实验标记在标注集扩大并复测前不会摘除。
+内置六维可以逐维覆盖阈值、改写措辞或关闭，也可通过 `guardrail.customRisks`（pi 用 `PI_DECISION_RISKS`）追加自定义维度。当前默认问题逐维描述事实条件并列出正反判断标准；宿主可提供用户请求、工作区、环境及绑定精确动作的授权，缺少必要上下文时转复核。评估与运行时共用出站脱敏流程。
+
+2026-09-26 的 22 个样本和两份结果属于旧版问题、状态与策略。当时该种子集上的 0% 误阻断和 0% deny 漏放**不能代表当前默认值**。旧 `externalSideEffect` 问题曾将工作区写入打成 0.74，高于群发邮件的 0.71，因此现在明确了边界。当前行为仍需更大、重复且独立的标注集验证；`enforce` 继续标记为实验特性。方法见 [评估说明](docs/eval.md)。

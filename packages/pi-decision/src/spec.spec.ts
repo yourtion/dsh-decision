@@ -30,7 +30,9 @@ describe("pi risk configuration", () => {
   it("defaults to the shared built-in set", () => {
     const spec = resolvePiGuardrailSpec({});
     expect(spec.guardrail.risks.map((risk) => risk.key)).toEqual([...GUARDRAIL_RISKS]);
-    expect(spec.guardrail.policyVersion).toMatch(/^guardrail-v2\.\d+\.\d+:[0-9a-f]{64}$/);
+    expect(spec.guardrail.policyVersion).toMatch(
+      /^guardrail-v3\.\d+\.\d+-experimental:[0-9a-f]{64}$/,
+    );
   });
 
   it("parses PI_DECISION_RISKS JSON to disable and append dimensions", () => {

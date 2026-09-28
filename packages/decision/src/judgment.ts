@@ -53,7 +53,12 @@ export interface JudgmentRequest {
 export interface JudgmentResult {
   readonly answers: Readonly<Record<string, JudgmentAnswer>>;
   readonly provider: string;
+  /** Requested model name or alias, when distinct from the resolved response model. */
+  readonly requestedModel?: string;
+  /** Configured provider model identity. */
   readonly model?: string;
+  /** Actual endpoint model version, when separately reported. */
+  readonly resolvedModel?: string;
 }
 
 export type JudgmentDomain = "tool-risk" | "routing" | "approval" | "output-safety";

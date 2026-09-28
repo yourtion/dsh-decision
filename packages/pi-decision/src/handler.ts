@@ -1,17 +1,19 @@
 import {
-  buildGuardrailRequest,
+  prepareGuardrailRequest,
   decideGuardrail,
-  redactValue,
+  validateJudgmentResult,
   traceErrorKind,
   type DecisionTraceRecord,
   type JudgmentProvider,
   type TraceSink,
+  type ToolDecisionContext,
 } from "@techs/dsh-decision/kernel";
 import type { PiGuardrailSpec } from "./spec.js";
 
 export interface ToolCall {
   readonly toolName: string;
   readonly input: unknown;
+  readonly context?: ToolDecisionContext;
 }
 
 export interface BlockedToolCall {
@@ -35,8 +37,13 @@ export function createToolCallHandler(
     if (spec.guardrail.tools.size > 0 && !spec.guardrail.tools.has(call.toolName)) return;
     if (signal?.aborted) return;
 
-    const safeInput =
-      spec.outbound === "raw" ? { value: call.input, count: 0 } : redactValue(call.input);
+    const prepared = prepareGuardrailRequest(
+      call.toolName,
+      call.input,
+      spec.guardrail.risks,
+      call.context,
+      spec.outbound,
+    );
     const audit = (fields: Omit<DecisionTraceRecord, "time" | "host" | "seam" | "mode">): void => {
       trace.record({
         time: new Date().toISOString(),
@@ -49,11 +56,12 @@ export function createToolCallHandler(
     };
 
     const evaluate = async () => {
-      const result = await provider.evaluate(
-        buildGuardrailRequest(call.toolName, safeInput.value, spec.guardrail.risks),
-        signal,
-      );
-      return { result, verdict: decideGuardrail(result, spec.guardrail) };
+      const result =
+        Object.keys(prepared.request.questions).length === 0
+          ? { provider: provider.id, answers: {} }
+          : await provider.evaluate(prepared.request, signal);
+      validateJudgmentResult(prepared.request, result);
+      return { result, verdict: decideGuardrail(result, spec.guardrail, prepared) };
     };
     if (spec.mode === "shadow") {
       void evaluate()
@@ -67,7 +75,7 @@ export function createToolCallHandler(
             action: verdict.action,
             policyVersion: verdict.policyVersion,
             judgments: binaryJudgments(result),
-            ...(safeInput.count === 0 ? {} : { redactions: safeInput.count }),
+            ...(prepared.redactions === 0 ? {} : { redactions: prepared.redactions }),
           });
         })
         .catch((error: unknown) => {
@@ -85,7 +93,7 @@ export function createToolCallHandler(
         action: verdict.action,
         policyVersion: verdict.policyVersion,
         judgments: binaryJudgments(result),
-        ...(safeInput.count === 0 ? {} : { redactions: safeInput.count }),
+        ...(prepared.redactions === 0 ? {} : { redactions: prepared.redactions }),
       });
       if (verdict.action === "allow") return;
       return {

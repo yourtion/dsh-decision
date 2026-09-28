@@ -60,11 +60,32 @@ export interface RouteConfig {
   readonly maxTokens?: number;
 }
 
+export interface CompositeRoutingWeights {
+  readonly reasoningComplexity?: number;
+  readonly changeScope?: number;
+  readonly ambiguity?: number;
+}
+
+export interface CompositeRouteBand {
+  /** Inclusive upper boundary of the normalized weighted score. */
+  readonly upTo: number;
+  readonly routeKey: string;
+}
+
+export interface CompositeRoutingConfig {
+  readonly weights?: CompositeRoutingWeights;
+  /** Ascending score bands; the last boundary must be 1. */
+  readonly bands: CompositeRouteBand[];
+}
+
 export interface RoutingConfig {
   readonly enabled?: boolean;
-  /** Choice answers with lower confidence keep the default model selection. */
+  /** Choice or three-dimensional ordinal composite scoring; Choice is the default. */
+  readonly strategy?: "choice" | "composite";
+  /** Missing or lower answer confidence keeps the default model selection. */
   readonly confidenceFloor?: number;
   readonly routes?: RouteConfig[];
+  readonly composite?: CompositeRoutingConfig;
 }
 
 export interface JudgeConfig {
@@ -139,36 +160,48 @@ export const Config: z<Config> = z.object({
       destructive: z.object({
         enabled: z.boolean(),
         instructions: z.string(),
+        criteria: z.object({ true: z.string(), false: z.string() }),
+        highAction: z.union(["review", "deny"] as const),
         reviewAt: probability,
         denyAt: probability,
       }),
       secretExposure: z.object({
         enabled: z.boolean(),
         instructions: z.string(),
+        criteria: z.object({ true: z.string(), false: z.string() }),
+        highAction: z.union(["review", "deny"] as const),
         reviewAt: probability,
         denyAt: probability,
       }),
       privacyExposure: z.object({
         enabled: z.boolean(),
         instructions: z.string(),
+        criteria: z.object({ true: z.string(), false: z.string() }),
+        highAction: z.union(["review", "deny"] as const),
         reviewAt: probability,
         denyAt: probability,
       }),
       externalSideEffect: z.object({
         enabled: z.boolean(),
         instructions: z.string(),
+        criteria: z.object({ true: z.string(), false: z.string() }),
+        highAction: z.union(["review", "deny"] as const),
         reviewAt: probability,
         denyAt: probability,
       }),
       privilegeEscalation: z.object({
         enabled: z.boolean(),
         instructions: z.string(),
+        criteria: z.object({ true: z.string(), false: z.string() }),
+        highAction: z.union(["review", "deny"] as const),
         reviewAt: probability,
         denyAt: probability,
       }),
       scopeViolation: z.object({
         enabled: z.boolean(),
         instructions: z.string(),
+        criteria: z.object({ true: z.string(), false: z.string() }),
+        highAction: z.union(["review", "deny"] as const),
         reviewAt: probability,
         denyAt: probability,
       }),
@@ -177,6 +210,8 @@ export const Config: z<Config> = z.object({
       z.object({
         enabled: z.boolean(),
         instructions: z.string().required(),
+        criteria: z.object({ true: z.string(), false: z.string() }),
+        highAction: z.union(["review", "deny"] as const),
         reviewAt: probability,
         denyAt: probability,
       }),
@@ -185,6 +220,7 @@ export const Config: z<Config> = z.object({
   }),
   routing: z.object({
     enabled: z.boolean(),
+    strategy: z.union(["choice", "composite"] as const),
     confidenceFloor: probability,
     routes: z.array(
       z.object({
@@ -196,6 +232,14 @@ export const Config: z<Config> = z.object({
         maxTokens: z.number(),
       }),
     ),
+    composite: z.object({
+      weights: z.object({
+        reasoningComplexity: z.number(),
+        changeScope: z.number(),
+        ambiguity: z.number(),
+      }),
+      bands: z.array(z.object({ upTo: probability.required(), routeKey: z.string().required() })),
+    }),
   }),
   judge: z.object({
     enabled: z.boolean(),
@@ -224,8 +268,13 @@ export interface GuardrailSpec {
 /** Fully-defaulted routing spec. */
 export interface RoutingSpec {
   readonly enabled: boolean;
+  readonly strategy: "choice" | "composite";
   readonly confidenceFloor: number;
   readonly routes: readonly RouteConfig[];
+  readonly composite: {
+    readonly weights: Required<CompositeRoutingWeights>;
+    readonly bands: readonly CompositeRouteBand[];
+  };
 }
 
 /** Fully-defaulted judge spec. */
@@ -297,11 +346,86 @@ export function resolveConfig(config: Config): ResolvedConfig {
   };
 
   const routingRaw = config.routing ?? {};
+  const routingWeights = {
+    reasoningComplexity: routingRaw.composite?.weights?.reasoningComplexity ?? 1,
+    changeScope: routingRaw.composite?.weights?.changeScope ?? 1,
+    ambiguity: routingRaw.composite?.weights?.ambiguity ?? 1,
+  };
   const routing: RoutingSpec = {
     enabled: routingRaw.enabled ?? false,
+    strategy: routingRaw.strategy ?? "choice",
     confidenceFloor: routingRaw.confidenceFloor ?? 0.6,
     routes: routingRaw.routes ?? [],
+    composite: { weights: routingWeights, bands: routingRaw.composite?.bands ?? [] },
   };
+  if (
+    !Number.isFinite(routing.confidenceFloor) ||
+    routing.confidenceFloor < 0 ||
+    routing.confidenceFloor > 1
+  ) {
+    throw new Error("dsh-decision: routing.confidenceFloor must be in [0, 1].");
+  }
+  const routeKeys = new Set<string>();
+  for (const route of routing.routes) {
+    if (
+      typeof route.key !== "string" ||
+      route.key.trim() === "" ||
+      route.key === "insufficient_context"
+    ) {
+      throw new Error(
+        "dsh-decision: routing route keys must be nonempty and cannot be insufficient_context.",
+      );
+    }
+    if (routeKeys.has(route.key))
+      throw new Error(`dsh-decision: duplicate routing route "${route.key}".`);
+    routeKeys.add(route.key);
+    if (typeof route.description !== "string" || route.description.trim() === "") {
+      throw new Error(
+        `dsh-decision: routing route "${route.key}" requires a nonempty description.`,
+      );
+    }
+    if (
+      route.maxTokens !== undefined &&
+      (!Number.isSafeInteger(route.maxTokens) || route.maxTokens < 1)
+    ) {
+      throw new Error(
+        `dsh-decision: routing route "${route.key}" maxTokens must be a positive integer.`,
+      );
+    }
+    for (const field of ["provider", "model", "reasoningEffort"] as const) {
+      if (route[field] !== undefined && route[field].trim() === "") {
+        throw new Error(`dsh-decision: routing route "${route.key}" ${field} must not be empty.`);
+      }
+    }
+  }
+  if (routing.strategy === "composite") {
+    for (const [key, weight] of Object.entries(routingWeights)) {
+      if (!Number.isFinite(weight) || weight <= 0) {
+        throw new Error(
+          `dsh-decision: routing composite weight ${key} must be positive and finite.`,
+        );
+      }
+    }
+    if (routing.composite.bands.length === 0) {
+      throw new Error("dsh-decision: composite routing requires bands.");
+    }
+    let previous = 0;
+    for (const band of routing.composite.bands) {
+      if (
+        !Number.isFinite(band.upTo) ||
+        band.upTo <= previous ||
+        band.upTo > 1 ||
+        !routeKeys.has(band.routeKey)
+      ) {
+        throw new Error(
+          "dsh-decision: composite routing bands must be increasing and reference configured routes.",
+        );
+      }
+      previous = band.upTo;
+    }
+    if (previous !== 1)
+      throw new Error("dsh-decision: final composite routing band must end at 1.");
+  }
 
   const judgeRaw = config.judge ?? {};
   const judge: JudgeSpec = {

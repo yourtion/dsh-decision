@@ -1,6 +1,16 @@
 /** Host-neutral guardrail and judgment contracts. No Cordis or Schemastery imports. */
-export { buildGuardrailRequest, decideGuardrail } from "./seams/guardrail.js";
-export type { GuardrailVerdict } from "./seams/guardrail.js";
+export {
+  buildGuardrailRequest,
+  prepareGuardrailRequest,
+  guardrailActionHash,
+  decideGuardrail,
+} from "./seams/guardrail.js";
+export type {
+  GuardrailVerdict,
+  ToolDecisionContext,
+  GuardrailActionAuthorization,
+  PreparedGuardrailRequest,
+} from "./seams/guardrail.js";
 export {
   BUILTIN_RISK_INSTRUCTIONS,
   DEFAULT_GUARDRAIL_RISKS,
@@ -28,6 +38,7 @@ export type {
 } from "./judgment.js";
 export { DecisionError, ProviderValidationError } from "./types.js";
 export { validateAnswer } from "./validation.js";
+export { validateJudgmentResult } from "./judgment-validation.js";
 export type {
   ChoiceAnswer,
   DecisionAdapter,
@@ -37,7 +48,7 @@ export type {
   NoulAnswer,
   ScoreAnswer,
 } from "./types.js";
-export { redactText, redactValue } from "./privacy/sanitizer.js";
+export { redactText, redactValue, OUTBOUND_PRIVACY_VERSION } from "./privacy/sanitizer.js";
 export type { OutboundPrivacy, RedactionResult } from "./privacy/sanitizer.js";
 export {
   JsonlTraceSink,
