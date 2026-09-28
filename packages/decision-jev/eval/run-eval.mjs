@@ -46,30 +46,41 @@ const risks = process.env.EVAL_RISKS
   : defaultRiskDefinitions();
 const riskKeys = risks.map((risk) => risk.key);
 
+/** Resolve provider defaults per key shape; JEV_BASE_URL/JEV_MODEL override all. */
 function providerSpec() {
-  // The direct Jev endpoint can answer slower than the client's 8s default.
+  // Every endpoint here can answer slower than the client's 8s default.
   const requestTimeout = timeoutMs > 0 ? { timeoutMs } : {};
+  const override = {
+    ...(process.env.JEV_MODEL ? { model: process.env.JEV_MODEL } : {}),
+    ...(process.env.JEV_BASE_URL ? { baseUrl: process.env.JEV_BASE_URL } : {}),
+  };
   if (process.env.AI_GATEWAY_API_KEY)
     return resolveJevConfig({
       apiKey: process.env.AI_GATEWAY_API_KEY,
       baseUrl: "https://ai-gateway.vercel.sh/typesafe",
       model: "typesafe-ai/jev",
+      ...override,
       ...requestTimeout,
     });
   if (process.env.JEV_API_KEY) {
-    // OpenRouter serves the same System One wire protocol on its own host.
+    // All three hosts serve the same System One wire protocol.
     if (process.env.JEV_API_KEY.startsWith("sk-or-"))
       return resolveJevConfig({
         apiKey: process.env.JEV_API_KEY,
         baseUrl: "https://openrouter.ai/api",
-        model: process.env.JEV_MODEL ?? "typesafe/jev-1.13",
+        model: "typesafe/jev-1.13",
+        ...override,
         ...requestTimeout,
       });
-    return resolveJevConfig({
-      apiKey: process.env.JEV_API_KEY,
-      ...(process.env.JEV_MODEL ? { model: process.env.JEV_MODEL } : {}),
-      ...requestTimeout,
-    });
+    // Official TypeSafe platform keys answer on api.typesafe.ai (~20s/judgment).
+    if (process.env.JEV_API_KEY.startsWith("apik_"))
+      return resolveJevConfig({
+        apiKey: process.env.JEV_API_KEY,
+        baseUrl: "https://api.typesafe.ai",
+        ...override,
+        ...requestTimeout,
+      });
+    return resolveJevConfig({ apiKey: process.env.JEV_API_KEY, ...override, ...requestTimeout });
   }
   throw new Error("set AI_GATEWAY_API_KEY or JEV_API_KEY for a live run");
 }
