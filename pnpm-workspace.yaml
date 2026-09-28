@@ -1,7 +1,9 @@
 packages:
   - packages/*
 allowBuilds:
+  '@google/genai': false
   esbuild: true
+  protobufjs: false
 minimumReleaseAgeExclude:
   - '@deepseek-ai/dsh-agent@0.1.7-rc.2'
   - '@deepseek-ai/dsh-brand@0.1.7-rc.2'

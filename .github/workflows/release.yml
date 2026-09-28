@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: pnpm/action-setup@v6
+        # Version is pinned via the root packageManager field.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          # Node 24 ships npm >= 11.5.1 — the hard requirement for npm
+          # Trusted Publishing (OIDC) that pnpm 11's native publish relies on.
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run test
+      - run: pnpm run lint
+      - run: pnpm run fmt
+      - name: Verify tag matches package versions
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          for manifest in packages/*/package.json; do
+            if [ "$(jq -r .version "$manifest")" != "$tag" ]; then
+              echo "tag $tag does not match $manifest" && exit 1
+            fi
+          done
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          # 幂等:workflow 部分失败重跑时不因 release 已存在而挂
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "release $tag already exists, skip create"
+          else
+            gh release create "$tag" --title "$tag" --generate-notes
+          fi
+      # npm 认证走 Trusted Publishers(OIDC,npmjs.com 后台绑定本 workflow,无需
+      # NPM_TOKEN);公开仓库 + OIDC 发布时 provenance 自动生成。
+      # npmjs.com 后台须为三个包各配一条 Trusted Publisher,且与本文件完全一致
+      # (大小写敏感):yourtion/dsh-decision + workflow filename「release.yml」+ 无 environment。
+      - name: Publish packages to npm
+        run: |
+          set -eu
+          tag="${GITHUB_REF#refs/tags/}"
+          # 拓扑序发布:decision → decision-jev → pi-decision;逐包幂等跳过,
+          # 部分失败重跑时不会在已发布的包上报错中断(v0.1.0 手工发布的教训)。
+          for dir in decision decision-jev pi-decision; do
+            name=$(jq -r .name "packages/$dir/package.json")
+            if [ "$(npm view "$name@$tag" version 2>/dev/null)" = "$tag" ]; then
+              echo "$name@$tag already on npm, skip publish"
+              continue
+            fi
+            (cd "packages/$dir" && pnpm publish --no-git-checks)
+          done
