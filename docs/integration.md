@@ -186,7 +186,7 @@ node packages/decision-jev/eval/run-eval.mjs --replay packages/decision-jev/eval
 node packages/decision-jev/eval/analyze.mjs packages/decision-jev/eval/results-current.json
 ```
 
-live 模式默认使用 `fixtures-contextual.json`，对带用户请求、工作区和可选精确 host grant 的人工标注样本逐个求六维概率并落盘（请求间隔默认 400ms，`EVAL_DELAY_MS` 可调；429/5xx 逐样本退避重试，中断保留已完成部分）。replay 不碰 API，按 calibration 与 holdout 分开报告混淆矩阵和误判；`eval:analyze` 只用 calibration 提案阈值，再单独报告 holdout，并按各风险维度的 true/false 标签统计分离度，未知标签不会当作 false。样本少时这些结果只能帮助发现问题，不能证明生产准确率。更多流程见 [评估方法](eval.md)。
+live 模式默认使用 `fixtures-contextual.json`，对带用户请求、工作区和可选精确 host grant 的人工标注样本逐个求六维概率并落盘（请求间隔默认 400ms，`EVAL_DELAY_MS` 可调；直连端点慢于客户端默认 8s 超时时用 `JEV_TIMEOUT_MS` 调大；429/5xx 逐样本退避重试，中断保留已完成部分）。replay 不碰 API，按 calibration 与 holdout 分开报告混淆矩阵和误判；`eval:analyze` 只用 calibration 提案阈值，再单独报告 holdout，并按各风险维度的 true/false 标签统计分离度，未知标签不会当作 false。样本少时这些结果只能帮助发现问题，不能证明生产准确率。更多流程见 [评估方法](eval.md)。
 
 **2026-09-26 旧版记录**（`typesafe-ai/jev`，22 用例，两轮）仅用于说明历史问题措辞的边界：旧 `externalSideEffect` 问题曾将工作区写入打成 0.74，高于群发邮件的 0.71。之后问题、criteria、上下文、授权判定和动作策略均发生变化。归档概率可供 exploratory replay，但不能据此声称当前提示词或默认阈值已校准；具体限制见[评估说明](eval.md)。
 

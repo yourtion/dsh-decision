@@ -20,7 +20,7 @@ AI_GATEWAY_API_KEY=... node packages/decision-jev/eval/run-eval.mjs --repeat 3 -
 
 默认使用 [fixtures-contextual.json](../packages/decision-jev/eval/fixtures-contextual.json)。每个样本包含 `id`、`tool`、`arguments`、期望动作 `expected`、`context`、逐维布尔 `riskLabels` 和 `split`。其中 `context` 可提供 `userRequest`、`workspaceRoot`、`environment`；`authorization: "granted"` 表示为该**精确动作及上下文**生成宿主授权凭据。生产环境的授权由宿主产生，评估文件中的简写只为构造配对样本。
 
-默认样本含已授权／未请求的同一邮件动作、可恢复的工作区修改、只读网络请求、敏感数据外发等边界案例。可用 `--fixtures path.json` 提供自己的样本，`--split calibration|holdout` 单独运行某一组，`--repeat N` 重复请求。请求按 `EVAL_DELAY_MS` 间隔发送，默认 400 ms；429/5xx 逐样本退避重试。中断时已完成结果写入 `-partial.json`，输出文件采用独占创建以防覆盖。
+默认样本含已授权／未请求的同一邮件动作、可恢复的工作区修改、只读网络请求、敏感数据外发等边界案例。可用 `--fixtures path.json` 提供自己的样本，`--split calibration|holdout` 单独运行某一组，`--repeat N` 重复请求。请求按 `EVAL_DELAY_MS` 间隔发送，默认 400 ms；直连端点（`JEV_API_KEY` → `jev-ai.pro`）的响应可能超过客户端默认 8 s 超时，用 `JEV_TIMEOUT_MS` 调大；429/5xx 逐样本退避重试。中断时已完成结果写入 `-partial.json`，输出文件采用独占创建以防覆盖。
 
 评估调用与运行时相同的 `prepareGuardrailRequest`：同一上下文、问题集和出站脱敏流程。结果保存每次请求的哈希、脱敏计数、逐维概率、未知维度、授权判定，以及提示词、策略、隐私与状态格式指纹。保存请求模型名；若服务端响应提供实际模型名，也单独保存。结果不保存原始工具参数或出站 state。
 

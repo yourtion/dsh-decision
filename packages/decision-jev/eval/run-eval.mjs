@@ -39,19 +39,25 @@ if (!Number.isInteger(repeats) || repeats < 1 || repeats > 20)
   throw new Error("--repeat must be an integer from 1 to 20");
 const delayMs = Number(process.env.EVAL_DELAY_MS ?? 400);
 if (!Number.isFinite(delayMs) || delayMs < 0) throw new Error("EVAL_DELAY_MS must be nonnegative");
+const timeoutMs = Number(process.env.JEV_TIMEOUT_MS ?? 0);
+if (!Number.isFinite(timeoutMs) || timeoutMs < 0) throw new Error("JEV_TIMEOUT_MS must be nonnegative");
 const risks = process.env.EVAL_RISKS
   ? resolveGuardrailRisks(JSON.parse(process.env.EVAL_RISKS)).risks
   : defaultRiskDefinitions();
 const riskKeys = risks.map((risk) => risk.key);
 
 function providerSpec() {
+  // The direct Jev endpoint can answer slower than the client's 8s default.
+  const requestTimeout = timeoutMs > 0 ? { timeoutMs } : {};
   if (process.env.AI_GATEWAY_API_KEY)
     return resolveJevConfig({
       apiKey: process.env.AI_GATEWAY_API_KEY,
       baseUrl: "https://ai-gateway.vercel.sh/typesafe",
       model: "typesafe-ai/jev",
+      ...requestTimeout,
     });
-  if (process.env.JEV_API_KEY) return resolveJevConfig({ apiKey: process.env.JEV_API_KEY });
+  if (process.env.JEV_API_KEY)
+    return resolveJevConfig({ apiKey: process.env.JEV_API_KEY, ...requestTimeout });
   throw new Error("set AI_GATEWAY_API_KEY or JEV_API_KEY for a live run");
 }
 
