@@ -47,7 +47,7 @@
 
 ## Jev adapter（systemone wire）
 
-- Endpoint：`POST {baseUrl}/v1/systemone`，默认 `baseUrl = https://jev-ai.pro/api`
+- Endpoint：`POST {baseUrl}/v1/systemone`，默认 `baseUrl = https://api.typesafe.ai`
   （TypeSafe 官方为 `https://api.typesafe.ai`）；`Authorization: Bearer <key>`。
 - 请求：`{ state, model, questions: Record<key, Question> }`
   - Noul → `{ type:'noul', instructions, criteria?: {true,false} }`

@@ -15,7 +15,7 @@ pi install npm:@techs/pi-decision
 | ------------------------- | --------- | --------------------------------------------------------------------- |
 | `AI_GATEWAY_API_KEY`      | 无        | Vercel AI Gateway key；与 `JEV_API_KEY` 同设时优先                    |
 | `JEV_API_KEY`             | 无        | 后备 key；`direct` 后端必填                                           |
-| `PI_DECISION_JEV_BACKEND` | `vercel`  | `vercel` 走 Gateway；`direct` 直连 `jev-ai.pro`                       |
+| `PI_DECISION_JEV_BACKEND` | `vercel`  | `vercel` 走 Gateway；`direct` 直连 `api.typesafe.ai`                  |
 | `PI_DECISION_ENFORCEMENT` | `shadow`  | `shadow` 异步观察不阻断；`enforce` 应用判定（实验特性，启动时打警告） |
 | `PI_DECISION_TOOLS`       | 空=全部   | 逗号分隔的准确工具名，如 `bash,write`                                 |
 | `PI_DECISION_ON_FAILURE`  | `allow`   | 判断请求失败时的策略：`allow` / `ask` / `deny`                        |

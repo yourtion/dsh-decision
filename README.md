@@ -7,7 +7,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-An extensible decision layer for [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/deepseek-harness) and [Pi](https://pi.dev/docs/latest/extensions). The core turns structured probability judgments into deterministic actions using a shared six-dimension tool risk policy. [Jev](https://jev-ai.pro) is the first judgment provider, not a requirement of the core. The agent's main model still generates responses.
+An extensible decision layer for [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/deepseek-harness) and [Pi](https://pi.dev/docs/latest/extensions). The core turns structured probability judgments into deterministic actions using a shared six-dimension tool risk policy. [Jev](https://typesafe.ai) is the first judgment provider, not a requirement of the core. The agent's main model still generates responses.
 
 ## Judgment providers
 

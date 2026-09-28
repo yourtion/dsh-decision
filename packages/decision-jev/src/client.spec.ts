@@ -4,7 +4,7 @@ import { DecisionError, ProviderValidationError } from "@techs/dsh-decision";
 import type { JevSpec } from "./config.js";
 
 const spec: JevSpec = {
-  baseUrl: "https://jev-ai.pro/api/",
+  baseUrl: "https://api.typesafe.ai/",
   apiKey: "test-key",
   model: "jev-latest",
   timeoutMs: 5_000,
@@ -62,7 +62,7 @@ describe("jev adapter wire mapping", () => {
     ]);
     const answers = await createJevAdapter(spec, impl).evaluate(request);
     expect(calls.length).toBe(1);
-    expect(calls[0]!.url).toBe("https://jev-ai.pro/api/v1/systemone");
+    expect(calls[0]!.url).toBe("https://api.typesafe.ai/v1/systemone");
     expect((calls[0]!.init.headers as Record<string, string>)["authorization"]).toBe(
       "Bearer test-key",
     );

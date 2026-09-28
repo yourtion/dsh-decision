@@ -36,6 +36,11 @@ follows [Semantic Versioning](https://semver.org/).
 - Upgraded pnpm from 10.17.1 to 11.27.1 (native publish with OIDC trusted
   publishing support); transitive build scripts are now explicitly declared
   under `allowBuilds` for pnpm 11's strict build-script policy.
+- The Jev adapter now defaults to the official TypeSafe endpoint
+  (`https://api.typesafe.ai`) with a 30s client timeout (a judgment takes
+  ~20s there); jev-ai.pro is no longer referenced. The eval harness routes
+  `JEV_API_KEY` to the official endpoint and honors `JEV_BASE_URL`/
+  `JEV_MODEL` overrides.
 - Reworked the six built-in risk questions to one factual question per risk
   with explicit positive and negative criteria; production and live
   evaluation now share the same outbound redaction pipeline.

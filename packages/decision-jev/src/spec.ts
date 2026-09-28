@@ -20,9 +20,11 @@ export function resolveJevConfig(config: JevConfig): JevSpec {
     );
   }
   return {
-    baseUrl: config.baseUrl ?? "https://jev-ai.pro/api",
+    baseUrl: config.baseUrl ?? "https://api.typesafe.ai",
     apiKey,
     model: config.model ?? "jev-latest",
-    timeoutMs: config.timeoutMs ?? 8_000,
+    // The official endpoint answers a judgment in ~20s; the ceiling only needs
+    // to tolerate that, faster hosts are not slowed down by it.
+    timeoutMs: config.timeoutMs ?? 30_000,
   };
 }

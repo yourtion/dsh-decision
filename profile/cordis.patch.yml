@@ -48,4 +48,4 @@
         apiKeyEnv: AI_GATEWAY_API_KEY
         baseUrl: https://ai-gateway.vercel.sh/typesafe
         model: typesafe-ai/jev
-        # For a direct Jev key instead, use baseUrl: https://jev-ai.pro/api and model: jev-latest.
+        # For a direct Jev key instead, use baseUrl: https://api.typesafe.ai and model: jev-latest.

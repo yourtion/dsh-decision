@@ -1,7 +1,7 @@
 /**
  * Jev adapter: thin HTTP client for the TypeSafe System One wire format.
- * Works against jev-ai.pro (same JSON as TypeSafe's native endpoint) and
- * TypeSafe itself — only `baseUrl` differs.
+ * Works against the official TypeSafe endpoint (api.typesafe.ai), the Vercel
+ * AI Gateway, and OpenRouter — the JSON is the same, only `baseUrl` differs.
  * @module dsh-decision-jev/client
  */
 

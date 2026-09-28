@@ -7,10 +7,10 @@ describe("jev config resolution", () => {
     try {
       const spec = resolveJevConfig({ apiKeyEnv: "DSH_DECISION_TEST_KEY" });
       expect(spec).toEqual({
-        baseUrl: "https://jev-ai.pro/api",
+        baseUrl: "https://api.typesafe.ai",
         apiKey: "from-env",
         model: "jev-latest",
-        timeoutMs: 8_000,
+        timeoutMs: 30_000,
       });
     } finally {
       delete process.env.DSH_DECISION_TEST_KEY;

@@ -7,7 +7,7 @@
 
 [English](README.md) | 简体中文
 
-面向 [dsh](https://github.com/deepseek-ai/deepseek-harness) 和 [pi](https://pi.dev/docs/latest/extensions) 的可扩展决策层：核心将结构化概率判断交给确定性策略处理，两个宿主共用六维工具风险策略。[Jev](https://jev-ai.pro) 是首个判断 provider，不是核心的依赖前提；agent 的主模型仍负责生成回复。
+面向 [dsh](https://github.com/deepseek-ai/deepseek-harness) 和 [pi](https://pi.dev/docs/latest/extensions) 的可扩展决策层：核心将结构化概率判断交给确定性策略处理，两个宿主共用六维工具风险策略。[Jev](https://typesafe.ai) 是首个判断 provider，不是核心的依赖前提；agent 的主模型仍负责生成回复。
 
 ## 判断模型接入
 

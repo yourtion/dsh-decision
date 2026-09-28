@@ -11,7 +11,7 @@
 | Jev 判断工具风险                  | pi 扩展或 dsh 的 Jev adapter | Vercel AI Gateway key，`https://ai-gateway.vercel.sh/typesafe/v1/systemone`，模型 `typesafe-ai/jev` |
 | pi 的主模型生成回复和发出工具调用 | pi 自身的模型与认证配置      | 由 `--provider` / `--model` 或 pi 设置选择                                                          |
 
-Vercel Gateway 的 [TypeSafe 兼容 API](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe)接受 Gateway key，并保留本仓库 Jev adapter 使用的 `noul` 等请求与响应字段。Vercel key 不能配着 `jev-ai.pro` 的 URL 使用。pi 扩展的 Gateway 模式优先读取 `AI_GATEWAY_API_KEY`，其次读取 `JEV_API_KEY`；dsh 示例 profile 的 `apiKeyEnv` 固定为 `AI_GATEWAY_API_KEY`。
+Vercel Gateway 的 [TypeSafe 兼容 API](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe)接受 Gateway key，并保留本仓库 Jev adapter 使用的 `noul` 等请求与响应字段。Vercel key 不能配着 TypeSafe 官方端点的 URL 使用。pi 扩展的 Gateway 模式优先读取 `AI_GATEWAY_API_KEY`，其次读取 `JEV_API_KEY`；dsh 示例 profile 的 `apiKeyEnv` 固定为 `AI_GATEWAY_API_KEY`。
 
 本地启动进程必须能读到 key。只在 Vercel 项目设置中保存变量，不会自动注入本机 pi 或 dsh。把 key 放在交互式 shell 配置时，也要确认运行 pi 的那个 shell 已加载配置；脚本、CI 或非交互式 shell 可能不会读取 `.bashrc`。下面只检查变量是否存在，不显示值：
 
@@ -56,16 +56,16 @@ fi
 
 ### pi 配置与行为
 
-| 环境变量                             | 默认             | 作用                                                                   |
-| ------------------------------------ | ---------------- | ---------------------------------------------------------------------- |
-| `AI_GATEWAY_API_KEY` / `JEV_API_KEY` | 无               | Vercel Gateway key；同时存在时优先前者                                 |
-| `PI_DECISION_JEV_BACKEND`            | `vercel`         | `vercel` 使用 Gateway；`direct` 使用 `jev-ai.pro` 和 `JEV_API_KEY`     |
-| `PI_DECISION_ENFORCEMENT`            | `shadow`         | `shadow` 异步观察；`enforce` 等待判断并应用结果（实验特性）            |
-| `PI_DECISION_TOOLS`                  | 空，表示所有工具 | 逗号分隔的准确工具名，如 `bash,write`                                  |
-| `PI_DECISION_ON_FAILURE`             | `allow`          | Jev 请求或响应失败时的策略：`allow`、`ask`、`deny`                     |
-| `PI_DECISION_OUTBOUND`               | `redact`         | 出站脱敏：`redact` 掩码密钥形态内容；`raw` 原样发送                    |
-| `PI_DECISION_AUDIT`                  | `on`             | 审计 trace 开关：`on`、`off`                                           |
-| `PI_DECISION_AUDIT_PATH`             | XDG state 目录   | 审计 JSONL 文件路径，默认 `~/.local/state/dsh-decision/pi-audit.jsonl` |
+| 环境变量                             | 默认             | 作用                                                                    |
+| ------------------------------------ | ---------------- | ----------------------------------------------------------------------- |
+| `AI_GATEWAY_API_KEY` / `JEV_API_KEY` | 无               | Vercel Gateway key；同时存在时优先前者                                  |
+| `PI_DECISION_JEV_BACKEND`            | `vercel`         | `vercel` 使用 Gateway；`direct` 使用 `api.typesafe.ai` 和 `JEV_API_KEY` |
+| `PI_DECISION_ENFORCEMENT`            | `shadow`         | `shadow` 异步观察；`enforce` 等待判断并应用结果（实验特性）             |
+| `PI_DECISION_TOOLS`                  | 空，表示所有工具 | 逗号分隔的准确工具名，如 `bash,write`                                   |
+| `PI_DECISION_ON_FAILURE`             | `allow`          | Jev 请求或响应失败时的策略：`allow`、`ask`、`deny`                      |
+| `PI_DECISION_OUTBOUND`               | `redact`         | 出站脱敏：`redact` 掩码密钥形态内容；`raw` 原样发送                     |
+| `PI_DECISION_AUDIT`                  | `on`             | 审计 trace 开关：`on`、`off`                                            |
+| `PI_DECISION_AUDIT_PATH`             | XDG state 目录   | 审计 JSONL 文件路径，默认 `~/.local/state/dsh-decision/pi-audit.jsonl`  |
 
 在 `shadow` 中，工具立即继续；只有 `review`、`deny` 或请求失败会写 stderr 日志，`allow` 不输出判定日志。在 `enforce` 中，`allow` 继续，`deny` 阻断，`review` 也阻断并提示人工复核，因为 pi 没有可移交的审批链。失败策略中的 `ask` 同样映射为阻断。`PI_DECISION_ON_FAILURE` 不影响缺 key 的加载错误。
 
@@ -78,7 +78,7 @@ fi
 - **扩展加载时报缺 key**：检查 `AI_GATEWAY_API_KEY` 或 `JEV_API_KEY` 是否已导出到启动 pi 的进程。不要通过打印 key 本身排查。
 - **主模型报 credentials not configured**：这是 pi 主模型的认证问题。用 `pi auth check --provider <provider> --no-refresh` 检查，并明确选择有凭证的模型；Jev 的 `JEV_API_KEY` 不会自动注册为 pi 主模型凭证。
 - **看不到 shadow 日志**：`allow` 不记判定日志；需要确认工具确实被调用。日志写 stderr，pi 的 JSON/print 输出写 stdout。
-- **Gateway 返回 401 或模型错误**：核对 key、base URL 和模型是否同属一个接入路径。Gateway 默认是 `https://ai-gateway.vercel.sh/typesafe` + `typesafe-ai/jev`；直连是 `https://jev-ai.pro/api` + `jev-latest`。
+- **Gateway 返回 401 或模型错误**：核对 key、base URL 和模型是否同属一个接入路径。Gateway 默认是 `https://ai-gateway.vercel.sh/typesafe` + `typesafe-ai/jev`；直连是 `https://api.typesafe.ai` + `jev-latest`（官方端点，单次判断约 20 s）。
 
 ## dsh 接入
 
@@ -136,7 +136,7 @@ machine: { uncertain: human } # human | deny
 
 ```yaml
 apiKeyEnv: JEV_API_KEY
-baseUrl: https://jev-ai.pro/api
+baseUrl: https://api.typesafe.ai
 model: jev-latest
 ```
 

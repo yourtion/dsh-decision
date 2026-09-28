@@ -15,7 +15,7 @@ The default `shadow` mode observes asynchronously without blocking tools. Config
 | ------------------------- | -------------- | --------------------------------------------------------------- |
 | `AI_GATEWAY_API_KEY`      | None           | Vercel AI Gateway key; takes priority over `JEV_API_KEY`        |
 | `JEV_API_KEY`             | None           | Fallback key; required for the `direct` backend                 |
-| `PI_DECISION_JEV_BACKEND` | `vercel`       | `vercel` for Gateway; `direct` for `jev-ai.pro`                 |
+| `PI_DECISION_JEV_BACKEND` | `vercel`       | `vercel` for Gateway; `direct` for `api.typesafe.ai`            |
 | `PI_DECISION_ENFORCEMENT` | `shadow`       | `shadow` observes; `enforce` applies judgments (experimental)   |
 | `PI_DECISION_TOOLS`       | All tools      | Comma-separated exact tool names, such as `bash,write`          |
 | `PI_DECISION_ON_FAILURE`  | `allow`        | Stance when a judgment request fails: `allow`, `ask`, or `deny` |

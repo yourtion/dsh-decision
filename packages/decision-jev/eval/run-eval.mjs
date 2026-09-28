@@ -40,15 +40,16 @@ if (!Number.isInteger(repeats) || repeats < 1 || repeats > 20)
 const delayMs = Number(process.env.EVAL_DELAY_MS ?? 400);
 if (!Number.isFinite(delayMs) || delayMs < 0) throw new Error("EVAL_DELAY_MS must be nonnegative");
 const timeoutMs = Number(process.env.JEV_TIMEOUT_MS ?? 0);
-if (!Number.isFinite(timeoutMs) || timeoutMs < 0) throw new Error("JEV_TIMEOUT_MS must be nonnegative");
+if (!Number.isFinite(timeoutMs) || timeoutMs < 0)
+  throw new Error("JEV_TIMEOUT_MS must be nonnegative");
 const risks = process.env.EVAL_RISKS
   ? resolveGuardrailRisks(JSON.parse(process.env.EVAL_RISKS)).risks
   : defaultRiskDefinitions();
 const riskKeys = risks.map((risk) => risk.key);
 
-/** Resolve provider defaults per key shape; JEV_BASE_URL/JEV_MODEL override all. */
+/** Resolve the provider; JEV_BASE_URL/JEV_MODEL override endpoint and model. */
 function providerSpec() {
-  // Every endpoint here can answer slower than the client's 8s default.
+  // The official endpoint can answer slower than the client's 8s default.
   const requestTimeout = timeoutMs > 0 ? { timeoutMs } : {};
   const override = {
     ...(process.env.JEV_MODEL ? { model: process.env.JEV_MODEL } : {}),
@@ -62,26 +63,8 @@ function providerSpec() {
       ...override,
       ...requestTimeout,
     });
-  if (process.env.JEV_API_KEY) {
-    // All three hosts serve the same System One wire protocol.
-    if (process.env.JEV_API_KEY.startsWith("sk-or-"))
-      return resolveJevConfig({
-        apiKey: process.env.JEV_API_KEY,
-        baseUrl: "https://openrouter.ai/api",
-        model: "typesafe/jev-1.13",
-        ...override,
-        ...requestTimeout,
-      });
-    // Official TypeSafe platform keys answer on api.typesafe.ai (~20s/judgment).
-    if (process.env.JEV_API_KEY.startsWith("apik_"))
-      return resolveJevConfig({
-        apiKey: process.env.JEV_API_KEY,
-        baseUrl: "https://api.typesafe.ai",
-        ...override,
-        ...requestTimeout,
-      });
+  if (process.env.JEV_API_KEY)
     return resolveJevConfig({ apiKey: process.env.JEV_API_KEY, ...override, ...requestTimeout });
-  }
   throw new Error("set AI_GATEWAY_API_KEY or JEV_API_KEY for a live run");
 }
 

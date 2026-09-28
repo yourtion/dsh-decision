@@ -18,7 +18,7 @@ live 评估会实际调用 Jev 并产生费用；以下命令只在有意运行�
 JEV_API_KEY=... JEV_TIMEOUT_MS=60000 node packages/decision-jev/eval/run-eval.mjs --repeat 3 --out packages/decision-jev/eval/results-new.json
 ```
 
-端点按所给的 key 自动选择，均使用同一 System One 线协议：`AI_GATEWAY_API_KEY` → Vercel AI Gateway（`typesafe-ai/jev`）；`JEV_API_KEY` 按 key 前缀分流——`apik_` 前缀为 TypeSafe 官方平台 key → `https://api.typesafe.ai`，`sk-or-` 前缀为 OpenRouter key → `https://openrouter.ai/api`（`typesafe/jev-1.13`），其余视为 jev-ai.pro 直连 key。`JEV_BASE_URL` 与 `JEV_MODEL` 可显式覆盖任何分支的端点与模型名。官方端点单次判断约 20 s，超过客户端默认 8 s 超时，用 `JEV_TIMEOUT_MS` 调大（建议 60000）。
+端点按所给的 key 二选一，均使用同一 System One 线协议：`AI_GATEWAY_API_KEY` → Vercel AI Gateway（`typesafe-ai/jev`）；`JEV_API_KEY` → TypeSafe 官方端点 `https://api.typesafe.ai`（`jev-latest`）。`JEV_BASE_URL` 与 `JEV_MODEL` 可显式覆盖端点与模型名（如指向其他兼容服务）。官方端点单次判断约 20 s，客户端默认超时已放宽到 30 s；评估时建议再用 `JEV_TIMEOUT_MS=60000` 留出余量。
 
 默认使用 [fixtures-contextual.json](../packages/decision-jev/eval/fixtures-contextual.json)。每个样本包含 `id`、`tool`、`arguments`、期望动作 `expected`、`context`、逐维布尔 `riskLabels` 和 `split`。其中 `context` 可提供 `userRequest`、`workspaceRoot`、`environment`；`authorization: "granted"` 表示为该**精确动作及上下文**生成宿主授权凭据。生产环境的授权由宿主产生，评估文件中的简写只为构造配对样本。
 

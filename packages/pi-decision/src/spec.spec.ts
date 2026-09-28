@@ -18,7 +18,7 @@ describe("pi Jev connection", () => {
     expect(
       resolvePiJevSpec({ PI_DECISION_JEV_BACKEND: "direct", JEV_API_KEY: "direct-key" }),
     ).toMatchObject({
-      baseUrl: "https://jev-ai.pro/api",
+      baseUrl: "https://api.typesafe.ai",
       model: "jev-latest",
     });
     expect(() => resolvePiJevSpec({})).toThrow(/AI_GATEWAY_API_KEY/);
