@@ -56,8 +56,21 @@ function providerSpec() {
       model: "typesafe-ai/jev",
       ...requestTimeout,
     });
-  if (process.env.JEV_API_KEY)
-    return resolveJevConfig({ apiKey: process.env.JEV_API_KEY, ...requestTimeout });
+  if (process.env.JEV_API_KEY) {
+    // OpenRouter serves the same System One wire protocol on its own host.
+    if (process.env.JEV_API_KEY.startsWith("sk-or-"))
+      return resolveJevConfig({
+        apiKey: process.env.JEV_API_KEY,
+        baseUrl: "https://openrouter.ai/api",
+        model: process.env.JEV_MODEL ?? "typesafe/jev-1.13",
+        ...requestTimeout,
+      });
+    return resolveJevConfig({
+      apiKey: process.env.JEV_API_KEY,
+      ...(process.env.JEV_MODEL ? { model: process.env.JEV_MODEL } : {}),
+      ...requestTimeout,
+    });
+  }
   throw new Error("set AI_GATEWAY_API_KEY or JEV_API_KEY for a live run");
 }
 
@@ -193,11 +206,13 @@ if (replayPath) {
   const rows = [];
   const stamp = new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
   const output = option("--out") ?? join(here, `results-${stamp}.json`);
+  // The final file must never be overwritten; a partial re-save after a crash
+  // supersedes the previous partial (same name) and may replace it.
   const save = async (partial) =>
     writeFile(
       partial ? output.replace(/\.json$/, "-partial.json") : output,
       `${JSON.stringify({ formatVersion: RESULT_FORMAT, generatedAt: new Date().toISOString(), evaluation: metadata, rows }, null, 2)}\n`,
-      { flag: "wx" },
+      { flag: partial ? "w" : "wx" },
     );
   try {
     for (let run = 1; run <= repeats; run += 1) {
