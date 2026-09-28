@@ -207,4 +207,4 @@ export function apply(ctx: Context): void {
 
 在 dsh profile 中安装新 provider 插件，并把 `decision.config.provider` 设为它注册的 `id`；所启用切面需要的问题类型必须由它支持。是否使用 Jev 的 TypeSafe System One wire 格式只影响 adapter 实现，不影响核心策略。现有 pi 包的入口直接调用 `createJevProvider()`，所以不能只改环境变量就切换到其他模型；要给 pi 增加对应 adapter 的创建与选择逻辑。
 
-旧的 `DecisionAdapter` 仍可通过 `registerAdapter()` 注册，但它的 `calibrated` 布尔值不授予 v2 自动审批资格。发往外部 API 的 state 默认经本地脱敏（见[隐私与审计](#隐私与审计)），未识别的私密内容仍可能发出。当前默认阈值尚未被当前版提示词与策略校准；换模型或修改问题后都应使用[评估工作台](#阈值评估)重新采集，在 `shadow` 下观察实际误判率，再考虑 `enforce`。
+旧的 `DecisionAdapter` 仍可通过 `registerAdapter()` 注册，但它的 `calibrated` 布尔值不授予 v2 自动审批资格。发往外部 API 的 state 默认经本地脱敏（见[隐私与审计](#隐私与审计)），未识别的私密内容仍可能发出。当前默认阈值已于 2026-09-28 在官方端点用 15 个上下文样本 ×3 轮校准（记录于 `eval/results-2026-09-28.json`，三类动作零误分）；样本仍小，换模型或修改问题后都应使用[评估工作台](#阈值评估)重新采集，在 `shadow` 下观察实际误判率，再考虑 `enforce`。

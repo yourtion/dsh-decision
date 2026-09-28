@@ -30,6 +30,10 @@ follows [Semantic Versioning](https://semver.org/).
   prompt/policy/privacy/state fingerprints; replay and analyze refuse stale
   results (exploratory re-scoring only via `--allow-incompatible`) and report
   calibration and holdout splits separately.
+- 2026-09-28 calibration record on the official TypeSafe endpoint
+  (`results-2026-09-28.json`): 15 contextual cases ×3 — allow/review/deny all
+  correct on calibration and holdout (false-block 0%, deny-miss 0%), five
+  dimensions separated with gaps ≥0.68.
 
 ### Changed
 
