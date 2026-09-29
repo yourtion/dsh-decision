@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Removed
+
+- Superseded eval artifacts from the repository: the single-run 2026-09-29
+  results and threshold search, the 15-case ×3 2026-09-28 results, and the
+  derived 44k-line diagnostics dump (regenerable offline via
+  `eval/diagnostics.mjs`; the single-run report is folded into the
+  three-repeat report). Eval outputs are gitignored by default now; curated
+  evidence files are whitelisted explicitly in `.gitignore`. Removed files
+  stay retrievable from git history.
+
 ## [0.2.0] - 2026-09-29
 
 ### Added

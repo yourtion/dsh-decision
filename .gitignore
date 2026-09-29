@@ -2,3 +2,14 @@ node_modules/
 lib/
 *.tsbuildinfo
 .DS_Store
+# Eval outputs are not archived by default; curated evidence is whitelisted.
+packages/decision-jev/eval/results-*.json
+packages/decision-jev/eval/thresholds-*.json
+packages/decision-jev/eval/diagnostics-*.json
+!packages/decision-jev/eval/results-2026-09-26.json
+!packages/decision-jev/eval/results-2026-09-26-original-instructions.json
+!packages/decision-jev/eval/results-2026-09-29-expanded-3x-calibration.json
+!packages/decision-jev/eval/results-2026-09-29-expanded-3x-validation.json
+!packages/decision-jev/eval/thresholds-2026-09-29-expanded-3x-calibration.json
+!packages/decision-jev/eval/thresholds-2026-09-29-expanded-3x-validation-comparison.json
+!packages/decision-jev/eval/thresholds-expanded-v1.config.json
