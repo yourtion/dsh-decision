@@ -154,7 +154,7 @@ dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev
 dsh plugin --profile web add "file:$(pwd)/packages/decision" "file:$(pwd)/packages/decision-jev"
 ```
 
-两个包从 0.1.1 起各自声明 `dsh.bundle`；dsh 安装时会将决策层和 Jev adapter 的 patch 加入 profile，无需复制示例 patch。包内 patch 默认使用 Gateway、`AI_GATEWAY_API_KEY`、`shadow` 和原生权限模式。key 必须对启动 dsh 的进程可见；本机将其放在权限为 600 的 `~/.dsh/.env`。安装后重启 Web 进程。要启用机器审批、路由等配置，再参考[示例 patch](../profile/cordis.patch.yml) 在 `~/.dsh/profiles/web/cordis.patch.yml` 中覆盖相应插件行。
+两个包从 0.2.0 起各自声明 `dsh.bundle`；dsh 安装时会将决策层和 Jev adapter 的 patch 加入 profile，无需复制示例 patch。包内 patch 默认使用 Gateway、`AI_GATEWAY_API_KEY`、`shadow` 和原生权限模式。key 必须对启动 dsh 的进程可见；本机将其放在权限为 600 的 `~/.dsh/.env`。安装后重启 Web 进程。要启用机器审批、路由等配置，再参考[示例 patch](../profile/cordis.patch.yml) 在 `~/.dsh/profiles/web/cordis.patch.yml` 中覆盖相应插件行。
 
 ### 验证范围
 

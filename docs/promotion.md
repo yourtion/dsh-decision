@@ -1,6 +1,6 @@
-# 0.1.1 社区发布稿
+# 0.2.0 社区发布稿
 
-发布顺序：先发布并验证三个 npm 包的 0.1.1，再给仓库设置简介与 `dsh-plugin`、`pi-extension` topic，最后发布社区帖子。Pi 包已有 `pi-package` 关键字，可由 Pi 包目录发现。安装说明与实际发布版本保持一致。
+发布顺序：先发布并验证三个 npm 包的 0.2.0，再给仓库设置简介与 `dsh-plugin`、`pi-extension` topic，最后发布社区帖子。Pi 包已有 `pi-package` 关键字，可由 Pi 包目录发现。安装说明与实际发布版本保持一致。
 
 建议的 GitHub 简介：`Extensible judgment layer for DeepSeek Harness and Pi: structured probability providers, shared tool-risk policy, and shadow audit traces. Jev adapter included.`
 
@@ -18,7 +18,7 @@ dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev
 dsh web
 ```
 
-判定会写入本地 JSONL 审计文件；发往判断模型的状态默认进行密钥形态脱敏。`enforce` 仍是实验特性：目前的 Jev 阈值校准只覆盖 22 个手工标注的种子用例，换模型需要重新评估，不应把这组结果当成实际环境的误判率。欢迎试用 `shadow` 并反馈真实工具调用里的误判。
+判定会写入本地 JSONL 审计文件；发往判断模型的状态默认进行密钥形态脱敏。`enforce` 仍是实验特性：默认阈值已于 2026-09-29 用 50 个固定样本 ×3 轮评估校准（密钥风险阈值据此调整，calibration 105/105、验证 45/45）；但密钥分数距阈值最近仅 0.01、隐私维度仍有重叠，不应把这组结果当成实际环境的误判率。欢迎试用 `shadow` 并反馈真实工具调用里的误判。
 
 源码与接入说明：[yourtion/dsh-decision](https://github.com/yourtion/dsh-decision) · [接入与验证](https://github.com/yourtion/dsh-decision/blob/main/docs/integration.md) · [评估方法](https://github.com/yourtion/dsh-decision/blob/main/docs/eval.md)
 
@@ -33,6 +33,6 @@ export AI_GATEWAY_API_KEY=your_gateway_key
 pi install npm:@techs/pi-decision
 ```
 
-The extension currently covers `tool_call` only. Enforce mode is experimental; the Jev threshold calibration uses 22 hand-labeled seed cases and must be repeated for another judgment model. I recommend starting in shadow mode and checking the audit before enabling enforcement. Feedback on false positives and the review flow would be useful.
+The extension currently covers `tool_call` only. Enforce mode is experimental; the defaults were recalibrated on 2026-09-29 with a 50-case, three-repeat evaluation (105/105 calibration actions, 45/45 on the previously inspected validation set), but secret-score margins are only 0.01 and privacy scores still overlap, so this is not production-grade accuracy. I recommend starting in shadow mode and checking the audit before enabling enforcement. Feedback on false positives and the review flow would be useful.
 
 Source and setup: [yourtion/dsh-decision](https://github.com/yourtion/dsh-decision) · [Pi integration](https://github.com/yourtion/dsh-decision/blob/main/docs/integration.md#pi-接入) · [evaluation method](https://github.com/yourtion/dsh-decision/blob/main/docs/eval.md)

@@ -1,6 +1,6 @@
 {
   "name": "@techs/dsh-decision",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Decision layer for dsh: provider-agnostic typed judgments (Jev first) behind tool guardrail, model routing, result judging, and machine approval seams",
   "keywords": [
     "decision",

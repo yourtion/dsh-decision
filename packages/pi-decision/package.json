@@ -1,6 +1,6 @@
 {
   "name": "@techs/pi-decision",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Jev-backed tool guardrail for pi",
   "keywords": [
     "guardrail",
