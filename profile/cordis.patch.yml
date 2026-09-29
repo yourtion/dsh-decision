@@ -19,7 +19,7 @@
           enabled: true
           # tools: [bash, run_command]          # empty screens every tool (0.5–1.5s per call)
           # risks:                              # omitted → experimental built-ins; evaluate before enforce
-          #   secretExposure: { reviewAt: 0.55, denyAt: 0.85 }
+          #   secretExposure: { reviewAt: 0.48, denyAt: 0.50 }
           #   destructive: { reviewAt: 0.45, denyAt: 0.55 }
           #   scopeViolation: { enabled: false } # first-class disable: not asked, not judged
           # customRisks:                        # user-defined dimensions, same aggregation rights

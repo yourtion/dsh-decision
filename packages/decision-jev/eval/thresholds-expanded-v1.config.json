@@ -1,0 +1,8 @@
+{
+  "risks": {
+    "secretExposure": {
+      "reviewAt": 0.48,
+      "denyAt": 0.5
+    }
+  }
+}

@@ -1,6 +1,8 @@
 # Guardrail 评估方法
 
-当前六维问题、上下文、脱敏流程和策略动作已于 **2026-09-28** 在 TypeSafe 官方端点（`api.typesafe.ai`，响应模型 `jev-1.13.0`）用 15 个人工标注的上下文样本 ×3 轮校准：`allow/review/deny` 三类在 calibration（27 答案）与 holdout（18 答案）上零误分，误阻断与漏放均为 0，五个维度 true/false 间隙 ≥0.68（privacyExposure 校准集无 true 标本，未测出独立信号）。原始概率见 [results-2026-09-28.json](../packages/decision-jev/eval/results-2026-09-28.json)。种子集仍小，这些数字不能外推为生产准确率，启用 `enforce` 前应在自己的任务上评估；2026-09-26 的两份旧结果仅记录旧版提问与阈值的表现。
+当前实验默认阈值已按 **50 个固定样本 ×3 轮**更新：只将 `secretExposure` 的复核线／拒绝线由 0.55／0.85 调到 **0.48／0.50**。105 个 calibration 判断由原策略 102/105 提升到 105/105；45 个重复验证判断原策略与新策略均为 45/45。验证样本此前已经看过，本轮只用于复核，没有参与调参，不能称为新的独立 holdout。密钥分数距边界最近仅 0.01，隐私维度仍有正负分数重叠；默认策略和 `enforce` 继续标记为实验性。
+
+完整原始结果、原阈值基线、冻结候选、逐轮指标及复现命令见 [2026-09-29 三轮报告](eval-2026-09-29-3x.md)。样本设计见 [expanded-v1](eval-expanded-v1.md)。此前 [50 样本单轮](eval-2026-09-29.md)、[15 样本三轮](../packages/decision-jev/eval/results-2026-09-28.json) 和 2026-09-26 旧版结果均保留；它们描述各自采集时的策略，不能替代当前版验证。
 
 ## 工具和数据
 
@@ -20,11 +22,11 @@ JEV_API_KEY=... JEV_TIMEOUT_MS=60000 node packages/decision-jev/eval/run-eval.mj
 
 端点按所给的 key 二选一，均使用同一 System One 线协议：`AI_GATEWAY_API_KEY` → Vercel AI Gateway（`typesafe-ai/jev`）；`JEV_API_KEY` → TypeSafe 官方端点 `https://api.typesafe.ai`（`jev-latest`）。`JEV_BASE_URL` 与 `JEV_MODEL` 可显式覆盖端点与模型名（如指向其他兼容服务）。官方端点单次判断约 20 s，客户端默认超时已放宽到 30 s；评估时建议再用 `JEV_TIMEOUT_MS=60000` 留出余量。
 
-默认使用 [fixtures-contextual.json](../packages/decision-jev/eval/fixtures-contextual.json)。每个样本包含 `id`、`tool`、`arguments`、期望动作 `expected`、`context`、逐维布尔 `riskLabels` 和 `split`。其中 `context` 可提供 `userRequest`、`workspaceRoot`、`environment`；`authorization: "granted"` 表示为该**精确动作及上下文**生成宿主授权凭据。生产环境的授权由宿主产生，评估文件中的简写只为构造配对样本。
+默认使用包含 50 个样本的 [fixtures-expanded-v1.json](../packages/decision-jev/eval/fixtures-expanded-v1.json)；原 15 个样本保留在 `fixtures-contextual.json`。每个样本包含 `id`、`tool`、`arguments`、期望动作 `expected`、`context`、逐维布尔 `riskLabels` 和 `split`。其中 `context` 可提供 `userRequest`、`workspaceRoot`、`environment`；`authorization: "granted"` 表示为该**精确动作及上下文**生成宿主授权凭据。生产环境的授权由宿主产生，评估文件中的简写只为构造配对样本。
 
 默认样本含已授权／未请求的同一邮件动作、可恢复的工作区修改、只读网络请求、敏感数据外发等边界案例。可用 `--fixtures path.json` 提供自己的样本，`--split calibration|holdout` 单独运行某一组，`--repeat N` 重复请求。请求按 `EVAL_DELAY_MS` 间隔发送，默认 400 ms；429/5xx 逐样本退避重试。中断时已完成结果写入 `-partial.json`（覆盖上次的 partial），最终输出文件采用独占创建以防覆盖。
 
-评估调用与运行时相同的 `prepareGuardrailRequest`：同一上下文、问题集和出站脱敏流程。结果保存每次请求的哈希、脱敏计数、逐维概率、未知维度、授权判定，以及提示词、策略、隐私与状态格式指纹。保存请求模型名；若服务端响应提供实际模型名，也单独保存。结果不保存原始工具参数或出站 state。
+评估调用与运行时相同的 `prepareGuardrailRequest`：同一上下文、问题集和出站脱敏流程。结果保存每次请求的哈希、脱敏计数、逐维概率、未知维度、授权判定，以及提示词、策略、隐私与状态格式指纹。保存请求模型名；若服务端响应提供实际模型名，也单独保存。结果不保存原始工具参数或出站 state。原策略采集的结果应配合 `baseline-expanded-v1.config.json` 通过 `EVAL_RISKS` 复现，不要修改结果指纹以适应更新后的默认阈值。
 
 ## 分析和对照
 

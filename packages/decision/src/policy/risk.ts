@@ -38,11 +38,13 @@ export interface RiskDefinition {
 /**
  * Experimental starting thresholds. The previous 22-case live evaluation
  * used different questions and state; its calibration does not transfer to
- * these definitions. Re-evaluate before treating scores as calibrated.
+ * these definitions. Secret-exposure thresholds were subsequently updated
+ * from the 50-case three-repeat evaluation in docs/eval-2026-09-29-3x.md.
+ * Re-evaluate before treating scores as calibrated.
  */
 export const DEFAULT_GUARDRAIL_RISKS: Readonly<Record<GuardrailRisk, RiskThresholds>> = {
   destructive: { reviewAt: 0.45, denyAt: 0.55 },
-  secretExposure: { reviewAt: 0.55, denyAt: 0.85 },
+  secretExposure: { reviewAt: 0.48, denyAt: 0.5 },
   privacyExposure: { reviewAt: 0.65, denyAt: 0.88 },
   externalSideEffect: { reviewAt: 0.45, denyAt: 0.7, highAction: "review" },
   privilegeEscalation: { reviewAt: 0.25, denyAt: 0.85 },

@@ -8,6 +8,10 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- A 50-case guardrail dataset covering redaction, authorization, privacy,
+  destructive actions, privilege boundaries and adversarial tool arguments;
+  calibration-only threshold search, baseline-aware comparison tools, and
+  archived single-run and three-repeat results with reproducible diagnostics.
 - dsh bundle manifests and Gateway-ready patches for direct `dsh plugin add`
   installation of the decision layer and Jev adapter.
 - npm discovery metadata, published-package quick starts, and ready-to-review
@@ -37,6 +41,13 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Experimental secret-exposure defaults now review at 0.48 and deny at 0.50
+  (previously 0.55 / 0.85). In the 50-case three-repeat evaluation, this fixes
+  two credential-output releases and one review instead of denial: calibration
+  improves from 102/105 to 105/105, while the previously seen validation set
+  remains 45/45. Other risk thresholds are unchanged. Score margins are only
+  0.01 and privacy scores overlap; these results do not establish production
+  accuracy. See `docs/eval-2026-09-29-3x.md` for the evidence and limitations.
 - Upgraded pnpm from 10.17.1 to 11.27.1 (native publish with OIDC trusted
   publishing support); transitive build scripts are now explicitly declared
   under `allowBuilds` for pnpm 11's strict build-script policy.

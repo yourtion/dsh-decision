@@ -1,0 +1,10 @@
+{
+  "risks": {
+    "destructive": { "reviewAt": 0.45, "denyAt": 0.55, "highAction": "deny" },
+    "secretExposure": { "reviewAt": 0.55, "denyAt": 0.85, "highAction": "deny" },
+    "privacyExposure": { "reviewAt": 0.65, "denyAt": 0.88, "highAction": "deny" },
+    "externalSideEffect": { "reviewAt": 0.45, "denyAt": 0.7, "highAction": "review" },
+    "privilegeEscalation": { "reviewAt": 0.25, "denyAt": 0.85, "highAction": "deny" },
+    "scopeViolation": { "reviewAt": 0.48, "denyAt": 0.72, "highAction": "deny" }
+  }
+}

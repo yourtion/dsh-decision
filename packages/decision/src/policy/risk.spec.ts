@@ -110,6 +110,21 @@ describe("resolveGuardrailRisks", () => {
   });
 });
 
+describe("experimental secret exposure thresholds", () => {
+  it("uses the calibrated allow, review, and deny boundaries", () => {
+    const risks = defaultRiskDefinitions();
+    const scores = (secretExposure: number) =>
+      Object.fromEntries(
+        risks.map((risk) => [risk.key, risk.key === "secretExposure" ? secretExposure : 0]),
+      );
+
+    expect(evaluateGuardrailPolicy(scores(0.47), risks).action).toBe("allow");
+    expect(evaluateGuardrailPolicy(scores(0.48), risks).action).toBe("review");
+    expect(evaluateGuardrailPolicy(scores(0.49), risks).action).toBe("review");
+    expect(evaluateGuardrailPolicy(scores(0.5), risks).action).toBe("deny");
+  });
+});
+
 describe("guardrailPolicyVersion", () => {
   it("changes with thresholds and with wording", () => {
     const base = defaultRiskDefinitions();

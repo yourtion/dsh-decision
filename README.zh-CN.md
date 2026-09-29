@@ -57,7 +57,7 @@ pi -e ./packages/pi-decision --no-session --tools read \
   'Use the read tool exactly once to read README.md, then reply with only its first Markdown heading.'
 ```
 
-示例中的 `zai-coding-cn/glm-5.3-flash` 是本仓库实际冒烟时可用的**主模型**；请按自己的 pi 凭证替换。Jev key 能让扩展判断工具，不会自动为 pi 的主模型提供凭证。早期冒烟中，模型调用了一次 `read` 并成功回答标题，当时的阈值曾把该读取判为 `review`。当前问题和上下文已于 2026-09-28 在 TypeSafe 官方端点重新校准：15 个人工标注的上下文样本 ×3 轮，allow/review/deny 三类在 calibration 与 holdout 上全部判对。仍建议先在 shadow 中观察自己任务的误判。完整命令、环境变量和结果见 [接入与验证说明](docs/integration.md)。
+示例中的 `zai-coding-cn/glm-5.3-flash` 是本仓库实际冒烟时可用的**主模型**；请按自己的 pi 凭证替换。Jev key 能让扩展判断工具，不会自动为 pi 的主模型提供凭证。早期冒烟中，模型调用了一次 `read` 并成功回答标题，当时的阈值曾把该读取判为 `review`。扩展后的 50 样本三轮评估与当前实验阈值见 [最新报告](docs/eval-2026-09-29-3x.md)。仍建议先在 shadow 中观察自己任务的误判。完整冒烟命令和环境变量见 [接入与验证说明](docs/integration.md)。
 
 ## 从仓库接入 dsh
 
@@ -95,4 +95,4 @@ pnpm run fmt       # oxfmt --check
 
 内置六维可以逐维覆盖阈值、改写措辞或关闭，也可通过 `guardrail.customRisks`（pi 用 `PI_DECISION_RISKS`）追加自定义维度。当前默认问题逐维描述事实条件并列出正反判断标准；宿主可提供用户请求、工作区、环境及绑定精确动作的授权，缺少必要上下文时转复核。评估与运行时共用出站脱敏流程。
 
-2026-09-26 的 22 个样本和两份结果属于旧版问题、状态与策略，其数字不代表当前默认值。当前默认值已于 2026-09-28 在 TypeSafe 官方端点重新校准（[结果](packages/decision-jev/eval/results-2026-09-28.json)）：15 个上下文样本 ×3 轮，calibration 与 holdout 上三类动作零误分、误阻断与漏放均为 0，五个维度的 true/false 间隙 ≥0.68（privacyExposure 在校准集无 true 标本，未测出独立信号）。样本仍小，`enforce` 继续标记为实验特性；方法见 [评估说明](docs/eval.md)。
+当前实验默认值已采用 2026-09-29 三轮评估结果：`secretExposure` 复核线为 0.48、拒绝线为 0.50，其他维度不变。50 个固定样本各运行三次，校准集原策略 102/105、选定策略 105/105；不参与调参的已见验证集两者均为 45/45。这是重复观察，不是 150 个独立样本。密钥风险分数距阈值最近仅 0.01，隐私维度仍有重叠，`enforce` 保持实验状态。原始结果、基线和复现命令见 [三轮报告](docs/eval-2026-09-29-3x.md)。

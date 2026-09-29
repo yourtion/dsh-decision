@@ -178,7 +178,7 @@ async function readResult(path) {
   return stored;
 }
 
-const fixturePath = option("--fixtures") ?? join(here, "fixtures-contextual.json");
+const fixturePath = option("--fixtures") ?? join(here, "fixtures-expanded-v1.json");
 const fixtureSource = replayPath ? [] : JSON.parse(await readFile(fixturePath, "utf8"));
 const fixtures = fixtureSource.map((fixture) => normalizeFixture(fixture, risks));
 if (new Set(fixtures.map((fixture) => fixture.id)).size !== fixtures.length)

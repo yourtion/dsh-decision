@@ -69,9 +69,9 @@ fi
 
 在 `shadow` 中，工具立即继续；只有 `review`、`deny` 或请求失败会写 stderr 日志，`allow` 不输出判定日志。在 `enforce` 中，`allow` 继续，`deny` 阻断，`review` 也阻断并提示人工复核，因为 pi 没有可移交的审批链。失败策略中的 `ask` 同样映射为阻断。`PI_DECISION_ON_FAILURE` 不影响缺 key 的加载错误。
 
-**`enforce` 是实验特性。** 当前问题、上下文和策略尚无足够 live 评估来校准；旧版 22 个用例与结果不能代表当前行为。缺少用户请求或工作区边界时，依赖这些信息的风险会转为人工复核。外部副作用高分默认要求复核，单靠用户请求文本不会生成精确动作授权；内置 dsh 与 pi 集成尚未连接授权授予 UI。启用时扩展会向 stderr 打一条警告。每次判定（shadow 和 enforce 都）会写一条 sanitized 审计记录到 `PI_DECISION_AUDIT_PATH`，内容只有判定、概率、policyVersion、脱敏计数和粗粒度错误类别，不含工具参数原文。
+**`enforce` 是实验特性。** 当前阈值经过 50 样本三轮评估，但密钥风险最近边际仅 0.01、隐私信号仍重叠，不能视作生产级校准（见[三轮报告](eval-2026-09-29-3x.md)）；旧版 22 个用例与结果不能代表当前行为。缺少用户请求或工作区边界时，依赖这些信息的风险会转为人工复核。外部副作用高分默认要求复核，单靠用户请求文本不会生成精确动作授权；内置 dsh 与 pi 集成尚未连接授权授予 UI。启用时扩展会向 stderr 打一条警告。每次判定（shadow 和 enforce 都）会写一条 sanitized 审计记录到 `PI_DECISION_AUDIT_PATH`，内容只有判定、概率、policyVersion、脱敏计数和粗粒度错误类别，不含工具参数原文。
 
-2026-09-26 的完整 pi 冒烟（pi 0.87.1、`zai-coding-cn/glm-5.3-flash` 主模型）：模型调用一次 `read README.md`，工具成功返回，最终回复 `# @techs/dsh-decision`。Jev shadow 给出的 `secretExposure` 概率为 0.19/0.18——这正是重校前的旧阈值（复核线 0.15）下的典型只读误报；重校后该类调用按默认阈值放行。pi 包当前没有环境变量形式的阈值配置，需要覆盖时在 dsh 侧或代码内配置。
+2026-09-26 的完整 pi 冒烟（pi 0.87.1、`zai-coding-cn/glm-5.3-flash` 主模型）：模型调用一次 `read README.md`，工具成功返回，最终回复 `# @techs/dsh-decision`。Jev shadow 给出的 `secretExposure` 概率为 0.19/0.18——这正是重校前的旧阈值（复核线 0.15）下的典型只读误报；重校后该类调用按默认阈值放行。pi 可通过 `PI_DECISION_RISKS` 传入与 dsh 风险配置相同的 JSON 结构，覆盖阈值或风险维度。
 
 ### pi 常见问题
 
@@ -116,7 +116,7 @@ guardrail:
   enabled: true
   onFailure: allow # Jev 请求失败时 allow | ask | deny
   # risks: # 省略时使用实验性内置默认；先运行当前版评估
-  #   secretExposure: { reviewAt: 0.55, denyAt: 0.85 }
+  #   secretExposure: { reviewAt: 0.48, denyAt: 0.50 }
   #   destructive: { reviewAt: 0.45, denyAt: 0.55 }
   #   scopeViolation: { enabled: false } # 一等关闭：不发问、不判定、不出站
   #   externalSideEffect: # 改写问题或 criteria 后重新采集评估数据
@@ -186,7 +186,7 @@ node packages/decision-jev/eval/run-eval.mjs --replay packages/decision-jev/eval
 node packages/decision-jev/eval/analyze.mjs packages/decision-jev/eval/results-current.json
 ```
 
-live 模式默认使用 `fixtures-contextual.json`，对带用户请求、工作区和可选精确 host grant 的人工标注样本逐个求六维概率并落盘（请求间隔默认 400ms，`EVAL_DELAY_MS` 可调；端点与模型可用 `JEV_BASE_URL`/`JEV_MODEL` 覆盖，按 key 自动选端点的规则与超时设置见[评估方法](eval.md)；429/5xx 逐样本退避重试，中断保留已完成部分）。replay 不碰 API，按 calibration 与 holdout 分开报告混淆矩阵和误判；`eval:analyze` 只用 calibration 提案阈值，再单独报告 holdout，并按各风险维度的 true/false 标签统计分离度，未知标签不会当作 false。样本少时这些结果只能帮助发现问题，不能证明生产准确率。更多流程见 [评估方法](eval.md)。
+live 模式默认使用 50 样本的 `fixtures-expanded-v1.json`，对带用户请求、工作区和可选精确 host grant 的人工标注样本逐个求六维概率并落盘（请求间隔默认 400ms，`EVAL_DELAY_MS` 可调；端点与模型可用 `JEV_BASE_URL`/`JEV_MODEL` 覆盖，按 key 自动选端点的规则与超时设置见[评估方法](eval.md)；429/5xx 逐样本退避重试，中断保留已完成部分）。replay 不碰 API，按 calibration 与 holdout 分开报告混淆矩阵和误判；`eval:analyze` 只用 calibration 提案阈值，再单独报告 holdout，并按各风险维度的 true/false 标签统计分离度，未知标签不会当作 false。样本少时这些结果只能帮助发现问题，不能证明生产准确率。更多流程见 [评估方法](eval.md)。
 
 **2026-09-26 旧版记录**（`typesafe-ai/jev`，22 用例，两轮）仅用于说明历史问题措辞的边界：旧 `externalSideEffect` 问题曾将工作区写入打成 0.74，高于群发邮件的 0.71。之后问题、criteria、上下文、授权判定和动作策略均发生变化。归档概率可供 exploratory replay，但不能据此声称当前提示词或默认阈值已校准；具体限制见[评估说明](eval.md)。
 
@@ -207,4 +207,4 @@ export function apply(ctx: Context): void {
 
 在 dsh profile 中安装新 provider 插件，并把 `decision.config.provider` 设为它注册的 `id`；所启用切面需要的问题类型必须由它支持。是否使用 Jev 的 TypeSafe System One wire 格式只影响 adapter 实现，不影响核心策略。现有 pi 包的入口直接调用 `createJevProvider()`，所以不能只改环境变量就切换到其他模型；要给 pi 增加对应 adapter 的创建与选择逻辑。
 
-旧的 `DecisionAdapter` 仍可通过 `registerAdapter()` 注册，但它的 `calibrated` 布尔值不授予 v2 自动审批资格。发往外部 API 的 state 默认经本地脱敏（见[隐私与审计](#隐私与审计)），未识别的私密内容仍可能发出。当前默认阈值已于 2026-09-28 在官方端点用 15 个上下文样本 ×3 轮校准（记录于 `eval/results-2026-09-28.json`，三类动作零误分）；样本仍小，换模型或修改问题后都应使用[评估工作台](#阈值评估)重新采集，在 `shadow` 下观察实际误判率，再考虑 `enforce`。
+旧的 `DecisionAdapter` 仍可通过 `registerAdapter()` 注册，但它的 `calibrated` 布尔值不授予 v2 自动审批资格。发往外部 API 的 state 默认经本地脱敏（见[隐私与审计](#隐私与审计)），未识别的私密内容仍可能发出。当前实验默认阈值已采用 50 样本三轮评估的密钥风险更新（见[原始结果及复现](eval-2026-09-29-3x.md)）；样本仍小，换模型或修改问题后都应使用[评估工作台](#阈值评估)重新采集，在 `shadow` 下观察实际误判率，再考虑 `enforce`。
