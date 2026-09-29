@@ -10,6 +10,7 @@
   ],
   "homepage": "https://github.com/yourtion/dsh-decision#readme",
   "bugs": "https://github.com/yourtion/dsh-decision/issues",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yourtion/dsh-decision.git",

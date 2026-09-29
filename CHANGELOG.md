@@ -4,32 +4,12 @@ All notable changes to this project are documented in this file. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 follows [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
-
-### Fixed
-
-- Audit JSONL records can no longer interleave out of order: concurrent
-  `appendFile` calls raced at the OS level (surfaced as a CI-only test
-  failure); writes are now serialized in `record()` order, still
-  fire-and-forget.
-- The release workflow reads the pnpm version from `packageManager`, which
-  requires `actions/checkout` to run before `pnpm/action-setup`; the step
-  order now matches the CI workflow.
-
-### Removed
-
-- Superseded eval artifacts from the repository: the single-run 2026-09-29
-  results and threshold search, the 15-case ×3 2026-09-28 results, and the
-  derived 44k-line diagnostics dump (regenerable offline via
-  `eval/diagnostics.mjs`; the single-run report is folded into the
-  three-repeat report). Eval outputs are gitignored by default now; curated
-  evidence files are whitelisted explicitly in `.gitignore`. Removed files
-  stay retrievable from git history.
-
 ## [0.2.0] - 2026-09-29
 
 ### Added
 
+- Declared `license: MIT` in all three package manifests (the repository
+  already ships an MIT `LICENSE`; npm metadata previously showed none).
 - A 50-case guardrail dataset covering redaction, authorization, privacy,
   destructive actions, privilege boundaries and adversarial tool arguments;
   calibration-only threshold search, baseline-aware comparison tools, and
@@ -56,10 +36,10 @@ follows [Semantic Versioning](https://semver.org/).
   prompt/policy/privacy/state fingerprints; replay and analyze refuse stale
   results (exploratory re-scoring only via `--allow-incompatible`) and report
   calibration and holdout splits separately.
-- 2026-09-28 calibration record on the official TypeSafe endpoint
-  (`results-2026-09-28.json`): 15 contextual cases ×3 — allow/review/deny all
-  correct on calibration and holdout (false-block 0%, deny-miss 0%), five
-  dimensions separated with gaps ≥0.68.
+- 2026-09-28 calibration on the official TypeSafe endpoint (15 contextual
+  cases ×3, raw file archived in git history): allow/review/deny all correct
+  on calibration and holdout (false-block 0%, deny-miss 0%), five dimensions
+  separated with gaps ≥0.68.
 
 ### Changed
 
@@ -85,6 +65,28 @@ follows [Semantic Versioning](https://semver.org/).
   context, authorization, and actions all changed since); defaults stay
   experimental until re-evaluated on live results, and the enforce warning
   now says exactly that.
+- Documentation and package READMEs now lead with published-package
+  installation and keep repository builds as the development path.
+
+### Fixed
+
+- Audit JSONL records can no longer interleave out of order: concurrent
+  `appendFile` calls raced at the OS level (surfaced as a CI-only test
+  failure); writes are now serialized in `record()` order, still
+  fire-and-forget.
+- The release workflow reads the pnpm version from `packageManager`, which
+  requires `actions/checkout` to run before `pnpm/action-setup`; the step
+  order now matches the CI workflow.
+
+### Removed
+
+- Superseded eval artifacts from the repository: the single-run 2026-09-29
+  results and threshold search, the 15-case ×3 2026-09-28 results, and the
+  derived 44k-line diagnostics dump (regenerable offline via
+  `eval/diagnostics.mjs`; the single-run report is folded into the
+  three-repeat report). Eval outputs are gitignored by default now; curated
+  evidence files are whitelisted explicitly in `.gitignore`. Removed files
+  stay retrievable from git history.
 
 ## [0.1.0] - 2026-09-26
 
