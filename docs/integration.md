@@ -25,11 +25,11 @@ fi
 
 ## pi 接入
 
-1. 安装仓库依赖并构建：
+1. 安装已发布的扩展（需要 Node.js 22.19+；判断用的 Jev key 见下方配置表）：
 
    ```sh
-   pnpm install
-   pnpm run build
+   pi install npm:@techs/pi-decision
+   pi list
    ```
 
 2. 在同一个 shell 中确认 Gateway key 已导出。扩展在加载时检查 key；缺失会直接报错。pi 自身的主模型还需要单独可用的凭证，可检查所选 provider：
@@ -40,19 +40,26 @@ fi
 
    `zai-coding-cn` 是本次冒烟所用的示例。若你的主模型走 `vercel-ai-gateway`，请检查该 provider；仅设置兼容扩展的 `JEV_API_KEY` 不会自动让 pi 主模型读取它。
 
-3. 从**仓库根目录**临时加载扩展并触发一次只读工具调用：
+3. 触发一次只读工具调用冒烟。扩展已安装，pi 会自动加载：
 
    ```sh
-   pi -e ./packages/pi-decision --no-extensions --no-session \
-     --no-context-files --no-skills --no-prompt-templates \
+   pi --no-session --no-context-files --no-skills --no-prompt-templates \
      --tools read --provider zai-coding-cn --model glm-5.3-flash \
      --thinking off --print \
      'Use the read tool exactly once to read README.md, then reply with only its first Markdown heading. Do not use any other tool.'
    ```
 
-   `--provider` 和 `--model` 要改成你的可用主模型。`--tools read` 限制本次冒烟只能读取；`--no-session` 不保存对话；`--no-extensions` 禁用自动发现的扩展，但仍加载显式传给 `-e` 的扩展。若要查看 pi 事件流，可追加 `--mode json`。
+   `--provider` 和 `--model` 要改成你的可用主模型。`--tools read` 限制本次冒烟只能读取；`--no-session` 不保存对话。若要查看 pi 事件流，可追加 `--mode json`。
 
-4. 临时加载验证后，可运行 `pi install ./packages/pi-decision` 持久加载。安装的是仓库中的本地包；保留这个仓库和 `pnpm install` 创建的 workspace 依赖链接。运行 `pi list` 可查看已安装的扩展。
+4. 从源码调试时，先构建仓库，再临时加载或本地安装：
+
+   ```sh
+   pnpm install && pnpm run build
+   pi -e ./packages/pi-decision --no-extensions --no-session --tools read --print '<同上提示词>'
+   pi install ./packages/pi-decision
+   ```
+
+   `-e` 只在本次 pi 进程加载扩展；`--no-extensions` 禁用自动发现的扩展，但仍加载显式传给 `-e` 的。`pi install ./packages/pi-decision` 安装的是仓库中的本地包，需保留 checkout 与 `pnpm install` 创建的 workspace 依赖链接。
 
 ### pi 配置与行为
 
@@ -81,6 +88,18 @@ fi
 - **Gateway 返回 401 或模型错误**：核对 key、base URL 和模型是否同属一个接入路径。Gateway 默认是 `https://ai-gateway.vercel.sh/typesafe` + `typesafe-ai/jev`；直连是 `https://api.typesafe.ai` + `jev-latest`（官方端点，单次判断约 20 s）。
 
 ## dsh 接入
+
+安装到现有 `web` profile（使用发布包；需要 Node.js 22.19+）：
+
+```sh
+export AI_GATEWAY_API_KEY=your_gateway_key
+dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev
+dsh web   # 已有 Web 进程则在安装后重启
+```
+
+两个包从 0.2.0 起各自声明 `dsh.bundle`；dsh 安装时会将决策层和 Jev adapter 的 patch 加入 profile，无需复制示例 patch。包内 patch 默认使用 Gateway、`AI_GATEWAY_API_KEY`、`shadow` 和原生权限模式。key 必须对启动 dsh 的进程可见；本机可放在权限为 600 的 `~/.dsh/.env`。要启用机器审批、路由等配置，再参考[示例 patch](../profile/cordis.patch.yml) 在 `~/.dsh/profiles/web/cordis.patch.yml` 中覆盖相应插件行。
+
+### 示例 profile（从仓库源码运行）
 
 示例 [profile](../profile/cordis.patch.yml) 使用 Gateway。它只读取 `AI_GATEWAY_API_KEY`；如果现有 Gateway key 存在于 `JEV_API_KEY`，在启动 dsh 的 shell 中先运行 `export AI_GATEWAY_API_KEY="$JEV_API_KEY"`，或者把 profile 中的 `apiKeyEnv` 改为 `JEV_API_KEY`。
 
@@ -142,19 +161,13 @@ model: jev-latest
 
 ### 现有 Web profile
 
-独立的 `decision` profile 使用 headless bundle；已有的 dsh Web 进程使用 `web` profile，两者需要分别加载插件。发布版可以直接安装：
-
-```sh
-dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev
-```
-
-若从仓库调试，可从根目录改用本地包：
+独立的 `decision` profile 使用 headless bundle；已有的 dsh Web 进程使用 `web` profile，两者需要分别加载插件。发布包的安装命令见上文；若从仓库调试，可从根目录改用本地包：
 
 ```sh
 dsh plugin --profile web add "file:$(pwd)/packages/decision" "file:$(pwd)/packages/decision-jev"
 ```
 
-两个包从 0.2.0 起各自声明 `dsh.bundle`；dsh 安装时会将决策层和 Jev adapter 的 patch 加入 profile，无需复制示例 patch。包内 patch 默认使用 Gateway、`AI_GATEWAY_API_KEY`、`shadow` 和原生权限模式。key 必须对启动 dsh 的进程可见；本机将其放在权限为 600 的 `~/.dsh/.env`。安装后重启 Web 进程。要启用机器审批、路由等配置，再参考[示例 patch](../profile/cordis.patch.yml) 在 `~/.dsh/profiles/web/cordis.patch.yml` 中覆盖相应插件行。
+安装后重启 Web 进程。
 
 ### 验证范围
 

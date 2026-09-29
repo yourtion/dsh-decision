@@ -12,7 +12,7 @@ Jev is one implementation of the core's `JudgmentProvider` contract. Other struc
 | `apiKey`    | None                      | Literal key; alternative to `apiKeyEnv` |
 | `apiKeyEnv` | None                      | Environment variable containing the key |
 | `model`     | `jev-latest`              | Model for direct Jev access             |
-| `timeoutMs` | `8000`                    | Per-request timeout                     |
+| `timeoutMs` | `30000`                   | Per-request timeout                     |
 
 For Vercel AI Gateway, use `baseUrl: https://ai-gateway.vercel.sh/typesafe`, `model: typesafe-ai/jev`, and `AI_GATEWAY_API_KEY`. The `./provider` and `./spec` exports do not depend on Cordis and can be used by hosts such as Pi. This adapter has no qualification for automatic approval, so machine approval will not automatically return `allowed-once`.
 

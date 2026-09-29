@@ -17,7 +17,7 @@ dsh 核心接受能对具名问题返回结构化概率的模型。接入时实�
 
 ## 安装发布版
 
-需要 Node.js 22.19+ 和 Vercel AI Gateway key。key 只用于 Jev 判断；宿主的主模型仍需自己的凭证。默认 `shadow` 仅观察并记录判断，不改变工具调用结果。
+需要 Node.js 22.19+ 和 Vercel AI Gateway key。key 只用于 Jev 判断；宿主的主模型仍需自己的凭证。默认 `shadow` 仅观察并记录判断，不改变工具调用结果。若要不经 Gateway 直连 TypeSafe 官方端点：pi 设 `PI_DECISION_JEV_BACKEND=direct` 并导出 `JEV_API_KEY`（官方端点单次判断约 20 s）；dsh 按[接入说明](docs/integration.md)覆盖 bundle 的 `decision-jev.config`。
 
 **pi**：
 
@@ -38,7 +38,7 @@ dsh web
 
 ## 从仓库接入 pi
 
-需要 Node.js 22.19+、pnpm、pi，以及 Vercel AI Gateway key。从仓库根目录运行：
+日常使用请优先装上面的发布包；本节从源码运行。需要 Node.js 22.19+、pnpm、pi，以及 Vercel AI Gateway key。从仓库根目录运行：
 
 ```sh
 pnpm install
@@ -61,7 +61,7 @@ pi -e ./packages/pi-decision --no-session --tools read \
 
 ## 从仓库接入 dsh
 
-需要已安装 dsh。仓库的 [profile](profile/cordis.patch.yml) 默认也使用 Vercel AI Gateway，**只读取 `AI_GATEWAY_API_KEY`**。如果现有 key 导出为 `JEV_API_KEY`，先在启动 dsh 的 shell 中运行 `export AI_GATEWAY_API_KEY="$JEV_API_KEY"`，或把 profile 的 `apiKeyEnv` 改为 `JEV_API_KEY`。
+日常使用请优先装上面的发布包；本节从源码运行示例 profile。需要已安装 dsh。仓库的 [profile](profile/cordis.patch.yml) 默认也使用 Vercel AI Gateway，**只读取 `AI_GATEWAY_API_KEY`**。如果现有 key 导出为 `JEV_API_KEY`，先在启动 dsh 的 shell 中运行 `export AI_GATEWAY_API_KEY="$JEV_API_KEY"`，或把 profile 的 `apiKeyEnv` 改为 `JEV_API_KEY`。
 
 ```sh
 pnpm install && pnpm run build

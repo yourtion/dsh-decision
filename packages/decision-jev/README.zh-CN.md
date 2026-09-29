@@ -12,7 +12,7 @@ Jev 只是核心 `JudgmentProvider` 接口的一个实现。其他能输出结�
 | `apiKey`    | 无                        | 与 `apiKeyEnv` 二选一             |
 | `apiKeyEnv` | 无                        | 从该环境变量读取 key              |
 | `model`     | `jev-latest`              | 直连 Jev 用                       |
-| `timeoutMs` | `8000`                    | 单次请求超时                      |
+| `timeoutMs` | `30000`                   | 单次请求超时                      |
 
 Vercel AI Gateway 接入：`baseUrl: https://ai-gateway.vercel.sh/typesafe` + `model: typesafe-ai/jev`，key 从 `AI_GATEWAY_API_KEY` 读取。`./provider` 与 `./spec` 子路径不依赖 Cordis，可被 pi 等宿主直接使用。本包不附带自动放行资格（calibration 为空），机器审批不会自动 `allowed-once`。
 

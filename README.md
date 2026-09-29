@@ -17,7 +17,7 @@ This repository ships the Jev adapter and Jev-based examples. The current Pi pac
 
 ## Install published packages
 
-Requires Node.js 22.19+ and a Vercel AI Gateway key. The key is for Jev judgments; configure the host's main model separately. The default `shadow` mode records judgments without changing tool execution.
+Requires Node.js 22.19+ and a Vercel AI Gateway key. The key is for Jev judgments; configure the host's main model separately. The default `shadow` mode records judgments without changing tool execution. To call the official TypeSafe endpoint directly instead of the Gateway, set `PI_DECISION_JEV_BACKEND=direct` with `JEV_API_KEY` (Pi; a judgment takes ~20 s there) or override the bundle's `decision-jev.config` (dsh, see the integration guide).
 
 **Pi:**
 
@@ -38,7 +38,7 @@ The two dsh packages provide separate bundles for the decision layer and the Jev
 
 ## Try Pi from this repository
 
-Requires Node.js 22.19+, pnpm, Pi, and a Vercel AI Gateway key. From the repository root:
+For normal use, prefer the published packages above; this section runs the extension from a checkout. Requires Node.js 22.19+, pnpm, Pi, and a Vercel AI Gateway key. From the repository root:
 
 ```sh
 pnpm install
@@ -61,7 +61,7 @@ The example uses `zai-coding-cn/glm-5.3-flash`, the main model available during 
 
 ## Try dsh from this repository
 
-Requires an installed dsh. The example [profile](profile/cordis.patch.yml) uses Vercel AI Gateway and reads **only `AI_GATEWAY_API_KEY`**. If your Gateway key is stored in `JEV_API_KEY`, export `AI_GATEWAY_API_KEY="$JEV_API_KEY"` in the shell starting dsh, or change the profile's `apiKeyEnv` setting.
+For normal use, prefer the published packages above; this section runs the example profile from a checkout. Requires an installed dsh. The example [profile](profile/cordis.patch.yml) uses Vercel AI Gateway and reads **only `AI_GATEWAY_API_KEY`**. If your Gateway key is stored in `JEV_API_KEY`, export `AI_GATEWAY_API_KEY="$JEV_API_KEY"` in the shell starting dsh, or change the profile's `apiKeyEnv` setting.
 
 ```sh
 pnpm install && pnpm run build
