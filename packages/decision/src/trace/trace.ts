@@ -66,13 +66,15 @@ export const NULL_TRACE_SINK: TraceSink = { record: () => {} };
  */
 export class JsonlTraceSink implements TraceSink {
   readonly #path: string;
-  readonly #ready: Promise<void>;
+  #tail: Promise<void>;
   readonly #warn: (message: string) => void;
 
   constructor(path: string, warn: (message: string) => void = console.warn) {
     this.#path = path;
     this.#warn = warn;
-    this.#ready = mkdir(dirname(path), { recursive: true }).then(
+    // Concurrent appends to one file may interleave or reorder at the OS
+    // level; chain every append so records reach the file in record() order.
+    this.#tail = mkdir(dirname(path), { recursive: true }).then(
       () => {},
       (error: unknown) => {
         warn(`decision trace: cannot create audit directory ${dirname(path)}: ${String(error)}`);
@@ -81,14 +83,14 @@ export class JsonlTraceSink implements TraceSink {
   }
 
   record(record: DecisionTraceRecord): void {
-    void this.#ready.then(
-      () =>
-        appendFile(this.#path, `${JSON.stringify(record)}\n`, "utf8").catch((error: unknown) =>
-          this.#warn(`decision trace: audit append to ${this.#path} failed: ${String(error)}`),
-        ),
-      // Directory creation already warned; nothing further to report.
-      () => {},
-    );
+    const line = `${JSON.stringify(record)}\n`;
+    this.#tail = this.#tail.then(async () => {
+      try {
+        await appendFile(this.#path, line, "utf8");
+      } catch (error: unknown) {
+        this.#warn(`decision trace: audit append to ${this.#path} failed: ${String(error)}`);
+      }
+    });
   }
 }
 

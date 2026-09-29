@@ -6,6 +6,16 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Audit JSONL records can no longer interleave out of order: concurrent
+  `appendFile` calls raced at the OS level (surfaced as a CI-only test
+  failure); writes are now serialized in `record()` order, still
+  fire-and-forget.
+- The release workflow reads the pnpm version from `packageManager`, which
+  requires `actions/checkout` to run before `pnpm/action-setup`; the step
+  order now matches the CI workflow.
+
 ### Removed
 
 - Superseded eval artifacts from the repository: the single-run 2026-09-29
