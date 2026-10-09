@@ -9,6 +9,7 @@ import {
   type OutboundPrivacy,
 } from "@techs/dsh-decision/kernel";
 import { resolveJevConfig, type JevSpec } from "@techs/dsh-decision-jev/spec";
+import { resolveOpenAIConfig, type OpenAISpec } from "@techs/dsh-decision-openai/spec";
 
 export interface PiGuardrailSpec {
   readonly mode: DecisionMode;
@@ -16,6 +17,25 @@ export interface PiGuardrailSpec {
   readonly outbound: OutboundPrivacy;
   /** Audit-trace switch and file path. */
   readonly audit: { readonly enabled: boolean; readonly path: string };
+}
+
+export function resolvePiProviderId(env: NodeJS.ProcessEnv): "jev" | "openai" {
+  return choice(env.PI_DECISION_PROVIDER, ["jev", "openai"], "PI_DECISION_PROVIDER", "jev");
+}
+
+export function resolvePiOpenAISpec(env: NodeJS.ProcessEnv): OpenAISpec {
+  const rawTimeout = env.PI_DECISION_OPENAI_TIMEOUT_MS;
+  if (rawTimeout && !/^\d+$/.test(rawTimeout)) {
+    throw new Error("pi-decision: PI_DECISION_OPENAI_TIMEOUT_MS must be a positive integer.");
+  }
+  return resolveOpenAIConfig(
+    {
+      baseUrl: env.PI_DECISION_OPENAI_BASE_URL,
+      model: env.PI_DECISION_OPENAI_MODEL,
+      timeoutMs: rawTimeout ? Number(rawTimeout) : undefined,
+    },
+    env,
+  );
 }
 
 /** Select the wire-compatible Vercel gateway unless direct Jev is requested. */

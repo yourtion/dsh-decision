@@ -1,10 +1,11 @@
 {
   "name": "@techs/pi-decision",
   "version": "0.2.0",
-  "description": "Jev-backed tool guardrail for pi",
+  "description": "Tool guardrail for pi with Jev and OpenAI Decisions judgment providers",
   "keywords": [
     "guardrail",
     "jev",
+    "openai",
     "pi-extension",
     "pi-package"
   ],
@@ -34,7 +35,8 @@
   },
   "dependencies": {
     "@techs/dsh-decision": "workspace:~",
-    "@techs/dsh-decision-jev": "workspace:~"
+    "@techs/dsh-decision-jev": "workspace:~",
+    "@techs/dsh-decision-openai": "workspace:~"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "^0.87.1",

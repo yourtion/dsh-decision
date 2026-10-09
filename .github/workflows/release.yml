@@ -50,16 +50,16 @@ jobs:
           fi
       # npm 认证走 Trusted Publishers(OIDC,npmjs.com 后台绑定本 workflow,无需
       # NPM_TOKEN);公开仓库 + OIDC 发布时 provenance 自动生成。
-      # npmjs.com 后台须为三个包各配一条 Trusted Publisher,且与本文件完全一致
+      # npmjs.com 后台须为四个包各配一条 Trusted Publisher,且与本文件完全一致
       # (大小写敏感):yourtion/dsh-decision + workflow filename「release.yml」+ 无 environment。
       - name: Publish packages to npm
         run: |
           set -eu
           tag="${GITHUB_REF#refs/tags/}"
           version="${tag#v}"
-          # 拓扑序发布:decision → decision-jev → pi-decision;逐包幂等跳过,
+          # 拓扑序发布:decision → decision-jev/decision-openai → pi-decision;逐包幂等跳过,
           # 部分失败重跑时不会在已发布的包上报错中断(v0.1.0 手工发布的教训)。
-          for dir in decision decision-jev pi-decision; do
+          for dir in decision decision-jev decision-openai pi-decision; do
             name=$(jq -r .name "packages/$dir/package.json")
             if [ "$(npm view "$name@$version" version 2>/dev/null)" = "$version" ]; then
               echo "$name@$version already on npm, skip publish"

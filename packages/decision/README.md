@@ -14,7 +14,7 @@ export function apply(ctx: Context): void {
 }
 ```
 
-Providers are separate packages; [@techs/dsh-decision-jev](https://www.npmjs.com/package/@techs/dsh-decision-jev) is the first implementation. Any model that can provide structured probability judgments can be integrated through a `JudgmentProvider` adapter, even if it uses a different API protocol. The adapter declares its supported question types, registers with `ctx.decision`, and is selected by `decision.config.provider`. A new model needs its own threshold evaluation; Jev's calibration does not transfer automatically.
+Providers are separate packages; [@techs/dsh-decision-jev](https://www.npmjs.com/package/@techs/dsh-decision-jev) is the first implementation, and [@techs/dsh-decision-openai](https://github.com/yourtion/dsh-decision/tree/main/packages/decision-openai) adds the native OpenAI Decisions API (currently from source). Any model that can provide structured probability judgments can be integrated through a `JudgmentProvider` adapter, even if it uses a different API protocol. The adapter declares its supported question types, registers with `ctx.decision`, and is selected by `decision.config.provider`. A new model needs its own threshold evaluation; Jev's calibration does not transfer automatically.
 
 This package includes no provider, route table, or credentials. Its `./kernel` export has no Cordis or Schemastery runtime dependency and is shared with Pi. The default `shadow` mode observes without changing behavior. Outbound state is redacted for recognizable secret patterns, and each judgment writes a sanitized audit record. `enforce` is experimental.
 

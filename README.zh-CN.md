@@ -13,7 +13,7 @@
 
 dsh 核心接受能对具名问题返回结构化概率的模型。接入时实现 `JudgmentProvider`，声明支持的问题类型（二元、分类、有序评分），注册到 `ctx.decision`，并通过 `decision.config.provider` 选择。每种模型或 API 协议需要将请求与结果映射到这个接口的 adapter，模型不必兼容 Jev 的 TypeSafe System One wire 格式。
 
-本仓库目前提供 Jev adapter 和基于 Jev 的示例。pi 包复用宿主无关的风险策略，但当前直接创建 Jev provider；要在 pi 中选择其他判断模型，还需增加对应 adapter 与 pi 接入。Jev 上校准的阈值不能直接套用到其他模型，应先重跑评估并从 `shadow` 开始观察。pi 目前只接入工具调用前的 guardrail。
+本仓库提供 Jev 和 [OpenAI Decisions API](packages/decision-openai/README.zh-CN.md) adapter。更新后的 pi 扩展可通过 `PI_DECISION_PROVIDER=jev|openai` 选择，默认仍为 Jev。OpenAI 接入可从当前源码使用，npm 安装需等新版本发布。Jev 上校准的阈值不能直接套用到其他模型，应先重跑评估并从 `shadow` 开始观察。pi 目前只接入工具调用前的 guardrail。
 
 ## 安装发布版
 
@@ -75,21 +75,22 @@ profile 默认 `enforcement: shadow`，dsh 原生权限规则继续生效。dsh 
 
 ## 仓库结构
 
-| 路径                     | 用途                                    |
-| ------------------------ | --------------------------------------- |
-| `packages/decision/`     | 宿主无关的风险内核与 dsh 四个切面       |
-| `packages/decision-jev/` | Jev 的 TypeSafe System One wire adapter |
-| `packages/pi-decision/`  | pi 的 `tool_call` guardrail 扩展        |
-| `profile/`               | dsh 的示例 profile                      |
+| 路径                        | 用途                                    |
+| --------------------------- | --------------------------------------- |
+| `packages/decision/`        | 宿主无关的风险内核与 dsh 四个切面       |
+| `packages/decision-jev/`    | Jev 的 TypeSafe System One wire adapter |
+| `packages/decision-openai/` | OpenAI 原生 Decisions API adapter       |
+| `packages/pi-decision/`     | pi 的 `tool_call` guardrail 扩展        |
+| `profile/`                  | dsh 的示例 profile                      |
 
 ```sh
-pnpm run typecheck # 构建并检查三个包
+pnpm run typecheck # 构建并检查四个包
 pnpm run test      # 单元测试
 pnpm run lint      # oxlint
 pnpm run fmt       # oxfmt --check
 ```
 
-架构与策略见 [设计文档](docs/design.md) 和 [v2 计划](docs/v2-plan.md)。风险阈值是实验值，`enforce` 模式当前标记为实验特性（启动时会打警告）；发往外部 Jev 服务的状态默认经本地脱敏（掩码密钥形态的内容，`privacy.outbound: raw` 可回退原样），未识别的私密内容仍可能发出。每次判定的 sanitized 审计记录默认写入 `$XDG_STATE_HOME/dsh-decision/`（pi 为 `pi-audit.jsonl`，dsh 为 `dsh-audit.jsonl`），可用 `audit.enabled: false` 或 `PI_DECISION_AUDIT=off` 关闭。MIT 协议见 [LICENSE](LICENSE)，变更见 [CHANGELOG](CHANGELOG.md)。
+架构与策略见 [设计文档](docs/design.md) 和 [v2 计划](docs/v2-plan.md)。新增方向的接入调研、任务输入与评估关卡见 [新决策任务迭代计划](docs/decision-tasks-roadmap.md)。风险阈值是实验值，`enforce` 模式当前标记为实验特性（启动时会打警告）；发往外部 Jev 服务的状态默认经本地脱敏（掩码密钥形态的内容，`privacy.outbound: raw` 可回退原样），未识别的私密内容仍可能发出。每次判定的 sanitized 审计记录默认写入 `$XDG_STATE_HOME/dsh-decision/`（pi 为 `pi-audit.jsonl`，dsh 为 `dsh-audit.jsonl`），可用 `audit.enabled: false` 或 `PI_DECISION_AUDIT=off` 关闭。MIT 协议见 [LICENSE](LICENSE)，变更见 [CHANGELOG](CHANGELOG.md)。
 
 ## 阈值与校准现状
 

@@ -14,7 +14,7 @@ export function apply(ctx: Context): void {
 }
 ```
 
-判断 provider 由独立插件包提供，[`@techs/dsh-decision-jev`](https://www.npmjs.com/package/@techs/dsh-decision-jev) 是首个实现。任何能返回结构化概率判断的模型，都可通过实现 `JudgmentProvider` 的 adapter 接入，即使 API 协议不同。adapter 声明支持的问题类型、注册到 `ctx.decision`，并由 `decision.config.provider` 选用；换模型后要重新评估阈值，不能沿用 Jev 的校准结果。
+判断 provider 由独立插件包提供，[`@techs/dsh-decision-jev`](https://www.npmjs.com/package/@techs/dsh-decision-jev) 是首个实现；新增的 [`@techs/dsh-decision-openai`](https://github.com/yourtion/dsh-decision/tree/main/packages/decision-openai) 接入原生 OpenAI Decisions API（目前从源码使用）。任何能返回结构化概率判断的模型，都可通过实现 `JudgmentProvider` 的 adapter 接入，即使 API 协议不同。adapter 声明支持的问题类型、注册到 `ctx.decision`，并由 `decision.config.provider` 选用；换模型后要重新评估阈值，不能沿用 Jev 的校准结果。
 
 本包不内置任何 provider、路由表或凭证。`./kernel` 子路径不引入 Cordis/Schemastery 的运行时依赖，供 pi 等其他宿主复用。默认 `shadow`（观察记录、不改变行为）；出站状态默认本地脱敏；每次判定写 sanitized 审计记录。`enforce` 为实验特性。
 

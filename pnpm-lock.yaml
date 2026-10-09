@@ -71,6 +71,28 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@24.13.6)(jiti@2.7.0)(yaml@2.9.0)
 
+  packages/decision-openai:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: ^3.18.4
+        version: 3.18.4
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 4.0.4
+        version: 4.0.4
+      '@techs/dsh-decision':
+        specifier: workspace:~
+        version: link:../decision
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.6
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.2
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.7(@types/node@24.13.6)(jiti@2.7.0)(yaml@2.9.0)
+
   packages/pi-decision:
     dependencies:
       '@techs/dsh-decision':
@@ -79,6 +101,9 @@ importers:
       '@techs/dsh-decision-jev':
         specifier: workspace:~
         version: link:../decision-jev
+      '@techs/dsh-decision-openai':
+        specifier: workspace:~
+        version: link:../decision-openai
     devDependencies:
       '@earendil-works/pi-coding-agent':
         specifier: ^0.87.1

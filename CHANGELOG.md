@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `@techs/dsh-decision-openai`: a native OpenAI Decisions API provider for
+  predicate, choice and score judgments, with per-question refusal handling,
+  probability validation, cancellation, timeouts, separate model identities,
+  host-neutral exports and a shadow-mode dsh bundle.
+- Explicit Pi provider selection through `PI_DECISION_PROVIDER=jev|openai`,
+  retaining Jev as the default and configuring OpenAI independently.
+- OpenAI protocol, dsh registration lifecycle and Pi guardrail integration
+  tests, plus English/Chinese setup documentation. The release workflow now
+  includes the OpenAI package before Pi; npm Trusted Publisher setup is required
+  for the new package before releasing.
+
 ## [0.2.0] - 2026-09-29
 
 ### Added

@@ -1,0 +1,15 @@
+# Applied after the core bundle; config patches replace the whole config.
+- id: decision
+  config:
+    provider: openai
+    timeoutMs: 8000
+    enforcement: shadow
+    permission: native
+- insert:
+    - id: decision-openai
+      name: "@techs/dsh-decision-openai"
+      config:
+        apiKeyEnv: OPENAI_API_KEY
+        baseUrl: https://api.openai.com/v1
+        model: gpt-6-luna
+        timeoutMs: 8000

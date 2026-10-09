@@ -1,8 +1,54 @@
 # 接入与验证
 
-本仓库提供宿主无关的概率判断接口与策略，Jev 是首个 provider 实现。示例配置把 Jev 用在两个宿主：pi 监听 `tool_call`，dsh 使用自身的 waterfall 扩展点。pi 目前只判断**调用工具前**的风险；dsh 另有路由、结果 judge、机器审批切面。两边的默认执行模式都是 `shadow`。其他能返回结构化概率判断的模型可通过各自 adapter 接入 dsh 核心，不要求兼容 Jev 的 API；pi 扩展当前仍直接绑定 Jev adapter。
+本仓库提供宿主无关的概率判断接口与策略，Jev 是首个 provider 实现。示例配置把 Jev 用在两个宿主：pi 监听 `tool_call`，dsh 使用自身的 waterfall 扩展点。pi 目前只判断**调用工具前**的风险；dsh 另有路由、结果 judge、机器审批切面。两边的默认执行模式都是 `shadow`。其他能返回结构化概率判断的模型可通过各自 adapter 接入 dsh 核心，不要求兼容 Jev 的 API；更新后的 pi 扩展可通过 `PI_DECISION_PROVIDER` 选择 Jev 或 OpenAI Decisions，默认仍为 Jev。OpenAI 接入可从当前源码使用，npm 安装需等更新版本发布。
 
-示例命令要求 Node.js 22.19+ 和 pnpm。若本机没有独立的 `pnpm` 命令，可用 `npm exec --yes --package=pnpm@10.17.1 -- pnpm <命令>` 执行相同操作；这也是本机检查时使用的 pnpm 版本。
+示例命令要求 Node.js 22.19+ 和 pnpm。若本机没有独立的 `pnpm` 命令，可用 `npm exec --yes --package=pnpm@11.27.1 -- pnpm <命令>` 执行相同操作；版本与根目录 `packageManager` 一致。
+
+## OpenAI Decisions API
+
+新包 `@techs/dsh-decision-openai` 调用原生 `POST /v1/decisions`；协议见 [OpenAI 官方指南](https://developers.openai.com/api/docs/guides/decisions)和 [API reference](https://developers.openai.com/api/reference/resources/decisions/methods/create)。接口目前为 public beta，支持 `gpt-6-luna`。
+
+| 核心题型    | Decisions 题型 | 映射                                                |
+| ----------- | -------------- | --------------------------------------------------- |
+| Binary      | predicate      | `probability`；正反 criteria 追加到 instructions    |
+| Categorical | choice         | 选项键与描述映射为 choices，概率数组转为记录        |
+| Ordinal     | score          | rubric 字符串映射为 level label，保留小数期望 score |
+
+支持共享 state 的多题批次、模型身份记录、取消和总超时。缺失、重复、未声明、类型不匹配或拒答的答案使整批失败，由宿主现有失败策略处理；不将拒答当作低风险。分布需完整且总和在 `1 ± 0.001` 内，保留 API 原值；score 必须与概率加权的 level 索引一致（允许舍入误差）。choice/score 的 confidence 与概率分别保留。
+
+当前中立契约提供 JSON/文本 state，以文本 input 发出；没有接入 Decisions 的原生图片 part。宿主继续使用既有出站脱敏、审计和 shadow 逻辑，直接使用 provider 的调用者自行准备出站 state。
+
+目前从源码运行，尚未发布新包；仓库根目录执行：
+
+```sh
+pnpm install
+pnpm run build
+export OPENAI_API_KEY=你的_OpenAI_key
+export PI_DECISION_PROVIDER=openai
+pi -e ./packages/pi-decision
+```
+
+pi 默认仍选择 Jev，只有 `PI_DECISION_PROVIDER=openai` 才读取 OpenAI 设置：
+
+| 环境变量                        | 默认                        | 作用                                   |
+| ------------------------------- | --------------------------- | -------------------------------------- |
+| `OPENAI_API_KEY`                | 无                          | OpenAI key；不读取 Jev/Gateway key     |
+| `PI_DECISION_OPENAI_BASE_URL`   | `https://api.openai.com/v1` | 含版本的 API 根地址，追加 `/decisions` |
+| `PI_DECISION_OPENAI_MODEL`      | `gpt-6-luna`                | Decisions 模型                         |
+| `PI_DECISION_OPENAI_TIMEOUT_MS` | `8000`                      | 包括响应体的总超时，正整数             |
+
+dsh 安装本地 bundle（核心在前、OpenAI 在后）：
+
+```sh
+dsh plugin --profile web add ./packages/decision ./packages/decision-openai
+dsh web
+```
+
+OpenAI bundle 选择 `provider: openai`、`timeoutMs: 8000`、`enforcement: shadow` 和 `permission: native`。插件配置支持 `baseUrl`、`apiKey`、`apiKeyEnv`（默认 `OPENAI_API_KEY`）、`model` 和 `timeoutMs`。dsh 核心和 provider 各自有超时，调大客户端超时时也需调整 `decision.config.timeoutMs`。
+
+dsh patch 替换整行 `config`，自定义策略要完整写在后加载的 profile patch；仓库既有示例 profile 仍使用 Jev。若已有 Jev 插件，不使用它时需禁用或移除，否则它仍会在加载时要求 Jev key。主模型凭证独立配置。
+
+协议与本地集成测试覆盖三类题型、拒答、非法答案、取消、超时、dsh 注册/卸载，以及 pi 的脱敏和失败策略。当前没有 OpenAI key 的现场调用结果，也没有 OpenAI 阈值校准报告；测试使用模拟 HTTP 响应。现有评估 CLI 仍专用于 Jev，不能直接当成 OpenAI 的校准工具。保持 shadow；该 provider 不提供机器审批自动放行资格。
 
 ## 先区分两种凭证
 

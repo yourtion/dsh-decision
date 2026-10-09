@@ -13,7 +13,7 @@ An extensible decision layer for [DeepSeek Harness (dsh)](https://github.com/dee
 
 The dsh core accepts models that can answer named, typed questions with structured probabilities. A provider implements `JudgmentProvider`, declares which question types it supports (binary, categorical, ordinal), registers with `ctx.decision`, and is selected by `decision.config.provider`. Each model or API protocol needs an adapter that maps its requests and answers to this contract. A model does not need to speak Jev's TypeSafe System One wire format.
 
-This repository ships the Jev adapter and Jev-based examples. The current Pi package reuses the neutral risk policy but directly creates the Jev provider; selecting another judgment model in Pi requires a new adapter and Pi integration. Thresholds calibrated on Jev do not transfer automatically to another model. Evaluate the new model and start in `shadow` before enabling enforcement. Pi currently implements the pre-tool-call guardrail only.
+This repository ships Jev and [OpenAI Decisions API](packages/decision-openai/README.md) adapters. The updated Pi extension selects either through `PI_DECISION_PROVIDER=jev|openai`, with Jev as the default. The OpenAI integration is available from this checkout; registry installation requires a release first. Thresholds calibrated on Jev do not transfer automatically to another model. Evaluate the new model and start in `shadow` before enabling enforcement. Pi currently implements the pre-tool-call guardrail only.
 
 ## Install published packages
 
@@ -75,21 +75,22 @@ The profile defaults to `enforcement: shadow`, so dsh's native permission rules 
 
 ## Repository layout
 
-| Path                     | Purpose                                                  |
-| ------------------------ | -------------------------------------------------------- |
-| `packages/decision/`     | Host-neutral risk kernel and four dsh integration points |
-| `packages/decision-jev/` | Jev TypeSafe System One wire adapter                     |
-| `packages/pi-decision/`  | Pi `tool_call` guardrail extension                       |
-| `profile/`               | Example dsh profile                                      |
+| Path                        | Purpose                                                  |
+| --------------------------- | -------------------------------------------------------- |
+| `packages/decision/`        | Host-neutral risk kernel and four dsh integration points |
+| `packages/decision-jev/`    | Jev TypeSafe System One wire adapter                     |
+| `packages/decision-openai/` | OpenAI native Decisions API adapter                      |
+| `packages/pi-decision/`     | Pi `tool_call` guardrail extension                       |
+| `profile/`                  | Example dsh profile                                      |
 
 ```sh
-pnpm run typecheck # Build and check all three packages
+pnpm run typecheck # Build and check all four packages
 pnpm run test      # Unit tests
 pnpm run lint      # oxlint
 pnpm run fmt       # oxfmt --check
 ```
 
-The [design](docs/design.md) and [v2 plan](docs/v2-plan.md) are currently in Chinese. `enforce` is experimental and emits a startup warning. Outbound state is locally redacted for recognizable secret patterns by default (`privacy.outbound: raw` sends it unchanged); unrecognized private data can still leave the host. Sanitized audit records go to `$XDG_STATE_HOME/dsh-decision/` (`pi-audit.jsonl` or `dsh-audit.jsonl`) and can be disabled with `audit.enabled: false` or `PI_DECISION_AUDIT=off`. See the [MIT license](LICENSE) and [changelog](CHANGELOG.md).
+The [design](docs/design.md), [v2 plan](docs/v2-plan.md), and [new decision tasks roadmap](docs/decision-tasks-roadmap.md) are currently in Chinese. The new roadmap documents integration research, task inputs, and evaluation gates for future development. `enforce` is experimental and emits a startup warning. Outbound state is locally redacted for recognizable secret patterns by default (`privacy.outbound: raw` sends it unchanged); unrecognized private data can still leave the host. Sanitized audit records go to `$XDG_STATE_HOME/dsh-decision/` (`pi-audit.jsonl` or `dsh-audit.jsonl`) and can be disabled with `audit.enabled: false` or `PI_DECISION_AUDIT=off`. See the [MIT license](LICENSE) and [changelog](CHANGELOG.md).
 
 ## Threshold calibration
 
