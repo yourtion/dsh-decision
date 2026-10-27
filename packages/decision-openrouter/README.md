@@ -66,7 +66,7 @@ dsh plugin --profile web add ./packages/decision ./packages/decision-openrouter
 dsh web
 ```
 
-The OpenRouter bundle selects the free Elephant model, `provider: openrouter`, `enforcement: shadow` and native permissions. Existing provider plugins still require their own credentials until disabled or removed. A registry installation requires publishing this new package first. This provider has no calibration qualification for machine approval. Existing host redaction and auditing apply; standalone callers must prepare their own outbound state.
+The OpenRouter bundle selects the free Elephant model, `provider: openrouter`, `enforcement: shadow` and native permissions. Existing provider plugins still require their own credentials until disabled or removed. For registry installation, use version `0.2.1` or newer of both the core and adapter. This provider has no calibration qualification for machine approval. Existing host redaction and auditing apply; standalone callers must prepare their own outbound state.
 
 Run the synthetic live checks with a freshly verified zero-price model:
 

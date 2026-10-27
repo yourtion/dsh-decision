@@ -13,7 +13,7 @@ An extensible decision layer for [DeepSeek Harness (dsh)](https://github.com/dee
 
 The dsh core accepts models that can answer named, typed questions with structured probabilities. A provider implements `JudgmentProvider`, declares which question types it supports (binary, categorical, ordinal), registers with `ctx.decision`, and is selected by `decision.config.provider`. Each API protocol needs an adapter that maps its requests and answers to this contract. A model does not need to speak Jev's TypeSafe System One wire format.
 
-This repository ships Jev, [OpenAI Decisions API](packages/decision-openai/README.md), and [OpenRouter](packages/decision-openrouter/README.md) adapters. The updated Pi extension selects a provider through `PI_DECISION_PROVIDER=jev|openai|openrouter`, with Jev as the default. The OpenAI and OpenRouter integrations are available from this checkout; registry installation requires a release first. Thresholds calibrated on Jev do not transfer automatically to another model. Evaluate the new model and start in `shadow` before enabling enforcement. Pi currently implements the pre-tool-call guardrail only.
+This repository ships Jev, [OpenAI Decisions API](packages/decision-openai/README.md), and [OpenRouter](packages/decision-openrouter/README.md) adapters. The updated Pi extension selects a provider through `PI_DECISION_PROVIDER=jev|openai|openrouter`, with Jev as the default. Use version `0.2.1` or newer of the core, adapter and Pi packages for these integrations. Thresholds calibrated on Jev do not transfer automatically to another model. Evaluate the new model and start in `shadow` before enabling enforcement. Pi currently implements the pre-tool-call guardrail only.
 
 ## Install published packages
 
@@ -91,7 +91,7 @@ pnpm run lint      # oxlint
 pnpm run fmt       # oxfmt --check
 ```
 
-The [design](docs/design.md), [v2 plan](docs/v2-plan.md), and [new decision tasks roadmap](docs/decision-tasks-roadmap.md) are currently in Chinese. The new roadmap documents integration research, task inputs, and evaluation gates for future development. `enforce` is experimental and emits a startup warning. Outbound state is locally redacted for recognizable secret patterns by default (`privacy.outbound: raw` sends it unchanged); unrecognized private data can still leave the host. Sanitized audit records go to `$XDG_STATE_HOME/dsh-decision/` (`pi-audit.jsonl` or `dsh-audit.jsonl`) and can be disabled with `audit.enabled: false` or `PI_DECISION_AUDIT=off`. For the initial local npm release and subsequent OIDC releases, see the [release guide](docs/releasing.md). See the [MIT license](LICENSE) and [changelog](CHANGELOG.md).
+The [design](docs/design.md), [v2 plan](docs/v2-plan.md), and [new decision tasks roadmap](docs/decision-tasks-roadmap.md) are currently in Chinese. The new roadmap documents integration research, task inputs, and evaluation gates for future development. `enforce` is experimental and emits a startup warning. Outbound state is locally redacted for recognizable secret patterns by default (`privacy.outbound: raw` sends it unchanged); unrecognized private data can still leave the host. Sanitized audit records go to `$XDG_STATE_HOME/dsh-decision/` (`pi-audit.jsonl` or `dsh-audit.jsonl`) and can be disabled with `audit.enabled: false` or `PI_DECISION_AUDIT=off`. See the [MIT license](LICENSE) and [changelog](CHANGELOG.md).
 
 ## Threshold calibration
 

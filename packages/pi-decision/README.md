@@ -11,7 +11,7 @@ pi install npm:@techs/pi-decision
 
 The default `shadow` mode observes asynchronously without blocking tools. Configure credentials for Pi's main model separately. Judgments are written to `$XDG_STATE_HOME/dsh-decision/pi-audit.jsonl`, or `~/.local/state/dsh-decision/pi-audit.jsonl` when XDG state is unset.
 
-The OpenAI integration is currently available from this checkout; npm installation needs an updated release first. After `pnpm install && pnpm run build`:
+The OpenAI integration requires version `0.2.1` or newer. After `pnpm install && pnpm run build`:
 
 ```sh
 export PI_DECISION_PROVIDER=openai
@@ -45,4 +45,4 @@ OpenAI uses the native [Decisions API](https://developers.openai.com/api/docs/gu
 
 ## OpenRouter Decisions
 
-Set `PI_DECISION_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and an explicit `PI_DECISION_OPENROUTER_MODEL` such as `baseten/elephant-1:free`. Optional `PI_DECISION_OPENROUTER_BASE_URL` defaults to `https://openrouter.ai/api/alpha`; `PI_DECISION_OPENROUTER_TIMEOUT_MS` defaults to `8000`. No Jev or OpenAI key is read in this mode. Build from this checkout before loading the extension; registry installation requires a release. See the [adapter guide](../decision-openrouter/README.md) and [free-model verification](../../docs/eval-openrouter-free.md).
+Set `PI_DECISION_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and an explicit `PI_DECISION_OPENROUTER_MODEL` such as `baseten/elephant-1:free`. Optional `PI_DECISION_OPENROUTER_BASE_URL` defaults to `https://openrouter.ai/api/alpha`; `PI_DECISION_OPENROUTER_TIMEOUT_MS` defaults to `8000`. No Jev or OpenAI key is read in this mode. For registry installation, use version `0.2.1` or newer; build first when loading from this checkout. See the [adapter guide](../decision-openrouter/README.md) and [free-model verification](../../docs/eval-openrouter-free.md).

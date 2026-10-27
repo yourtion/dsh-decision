@@ -4,11 +4,9 @@ All notable changes to this project are documented in this file. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 follows [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.1] - 2026-10-27
 
 ### Added
-
-- Document the OpenRouter-only npm bootstrap and Trusted Publisher setup without changing the existing package versions.
 
 - Add `OpenRouterAdapter` and the `@techs/dsh-decision-openrouter` bundle, selected with `provider: openrouter` in dsh or `PI_DECISION_PROVIDER=openrouter` in Pi.
 - Share connection and usage types across Decisions providers and enforce complete probability distributions and matching ordinal expectations in the neutral validator. Legacy adapter entry points remain available.

@@ -1,6 +1,6 @@
 {
   "name": "@techs/dsh-decision-jev",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Jev (TypeSafe System One) adapter for the dsh decision layer",
   "keywords": [
     "deepseek-harness",

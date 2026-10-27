@@ -57,7 +57,7 @@ dsh plugin --profile web add ./packages/decision ./packages/decision-openrouter
 dsh web
 ```
 
-OpenRouter bundle 默认使用免费 Elephant、`provider: openrouter`、`enforcement: shadow` 和原生权限。既有 provider 插件未禁用或移除时，仍需要各自的 key。新包需发布后才能通过 npm 安装。适配器不声明自动审批资格。宿主继续使用既有脱敏与审计；直接调用者自行准备出站 state。
+OpenRouter bundle 默认使用免费 Elephant、`provider: openrouter`、`enforcement: shadow` 和原生权限。既有 provider 插件未禁用或移除时，仍需要各自的 key。npm 安装请使用核心和适配器的 `0.2.1` 或更新版本。适配器不声明自动审批资格。宿主继续使用既有脱敏与审计；直接调用者自行准备出站 state。
 
 免费模型验证：
 

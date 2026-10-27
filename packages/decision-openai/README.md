@@ -24,7 +24,7 @@ dsh plugin --profile web add ./packages/decision ./packages/decision-openai
 dsh web
 ```
 
-The OpenAI bundle must follow the core bundle. It selects `provider: openai`, `enforcement: shadow` and `permission: native`. dsh patches replace a row's entire `config`; put your full custom decision configuration in the profile's later patch. Installing into an existing Jev profile leaves its Jev plugin loaded and still requiring its key; disable or remove that plugin if it is no longer used. The repository's existing example profile continues to use Jev. Registry installation of this new package requires a release first.
+The OpenAI bundle must follow the core bundle. It selects `provider: openai`, `enforcement: shadow` and `permission: native`. dsh patches replace a row's entire `config`; put your full custom decision configuration in the profile's later patch. Installing into an existing Jev profile leaves its Jev plugin loaded and still requiring its key; disable or remove that plugin if it is no longer used. The repository's existing example profile continues to use Jev. For registry installation, use version `0.2.1` or newer of both the core and adapter.
 
 The `./provider` and `./spec` exports have no Cordis or Schemastery runtime imports:
 

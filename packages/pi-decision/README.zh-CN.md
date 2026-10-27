@@ -11,7 +11,7 @@ pi install npm:@techs/pi-decision
 
 安装后默认以 `shadow` 模式异步观察，不拦截工具；pi 的主模型需要单独配置凭证。退出 pi 后可在 `$XDG_STATE_HOME/dsh-decision/pi-audit.jsonl` 查看判定（未设置 XDG 时用 `~/.local/state/dsh-decision/`）。
 
-OpenAI 接入目前从本仓库源码使用，npm 安装需等更新版本发布。先执行 `pnpm install && pnpm run build`：
+OpenAI 接入需使用 `0.2.1` 或更新版本。先执行 `pnpm install && pnpm run build`：
 
 ```sh
 export PI_DECISION_PROVIDER=openai
@@ -45,4 +45,4 @@ OpenAI 使用原生 [Decisions API](https://developers.openai.com/api/docs/guide
 
 ## OpenRouter Decisions
 
-设置 `PI_DECISION_PROVIDER=openrouter`、`OPENROUTER_API_KEY`，并用 `PI_DECISION_OPENROUTER_MODEL` 显式选模型，例如 `baseten/elephant-1:free`。可选 `PI_DECISION_OPENROUTER_BASE_URL` 默认 `https://openrouter.ai/api/alpha`，`PI_DECISION_OPENROUTER_TIMEOUT_MS` 默认 `8000`。该模式不读取 Jev 或 OpenAI key。先在当前源码构建，再加载扩展；npm 安装需等待发布。参见[适配器指南](../decision-openrouter/README.zh-CN.md)和[免费模型验证](../../docs/eval-openrouter-free.md)。
+设置 `PI_DECISION_PROVIDER=openrouter`、`OPENROUTER_API_KEY`，并用 `PI_DECISION_OPENROUTER_MODEL` 显式选模型，例如 `baseten/elephant-1:free`。可选 `PI_DECISION_OPENROUTER_BASE_URL` 默认 `https://openrouter.ai/api/alpha`，`PI_DECISION_OPENROUTER_TIMEOUT_MS` 默认 `8000`。该模式不读取 Jev 或 OpenAI key。npm 安装请使用 `0.2.1` 或更新版本；从源码加载扩展时需先构建。参见[适配器指南](../decision-openrouter/README.zh-CN.md)和[免费模型验证](../../docs/eval-openrouter-free.md)。

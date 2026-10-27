@@ -1,6 +1,6 @@
 # 接入与验证
 
-本仓库提供宿主无关的概率判断接口与策略，Jev 是首个 provider 实现。示例配置把 Jev 用在两个宿主：pi 监听 `tool_call`，dsh 使用自身的 waterfall 扩展点。pi 目前只判断**调用工具前**的风险；dsh 另有路由、结果 judge、机器审批切面。两边的默认执行模式都是 `shadow`。其他能返回结构化概率判断的模型可通过各自 adapter 接入 dsh 核心，不要求兼容 Jev 的 API；更新后的 pi 扩展可通过 `PI_DECISION_PROVIDER` 选择 Jev、OpenAI Decisions 或 OpenRouter，默认仍为 Jev。OpenAI 接入可从当前源码使用，npm 安装需等更新版本发布。
+本仓库提供宿主无关的概率判断接口与策略，Jev 是首个 provider 实现。示例配置把 Jev 用在两个宿主：pi 监听 `tool_call`，dsh 使用自身的 waterfall 扩展点。pi 目前只判断**调用工具前**的风险；dsh 另有路由、结果 judge、机器审批切面。两边的默认执行模式都是 `shadow`。其他能返回结构化概率判断的模型可通过各自 adapter 接入 dsh 核心，不要求兼容 Jev 的 API；更新后的 pi 扩展可通过 `PI_DECISION_PROVIDER` 选择 Jev、OpenAI Decisions 或 OpenRouter，默认仍为 Jev。OpenAI 接入需使用 `0.2.1` 或更新版本。
 
 示例命令要求 Node.js 22.19+ 和 pnpm。若本机没有独立的 `pnpm` 命令，可用 `npm exec --yes --package=pnpm@11.27.1 -- pnpm <命令>` 执行相同操作；版本与根目录 `packageManager` 一致。
 
@@ -18,7 +18,7 @@
 
 当前中立契约提供 JSON/文本 state，以文本 input 发出；没有接入 Decisions 的原生图片 part。宿主继续使用既有出站脱敏、审计和 shadow 逻辑，直接使用 provider 的调用者自行准备出站 state。
 
-目前从源码运行，尚未发布新包；仓库根目录执行：
+从源码运行时，在仓库根目录执行：
 
 ```sh
 pnpm install
@@ -272,7 +272,7 @@ live 模式默认使用 50 样本的 `fixtures-expanded-v1.json`，对带用户�
 
 `packages/decision` 提供不引入 Cordis/Schemastery 运行时依赖的 `./kernel` 子路径，`packages/decision-jev` 提供 `./provider` 和 `./spec` 子路径，pi 扩展只在类型位置导入 pi 的 `ExtensionAPI`。本地 `pi -e` 和 `pi install ./packages/pi-decision` 依赖 pnpm workspace 链接（pnpm 版本由根 `package.json` 的 `packageManager` 锁定为 11.27.1，11 的原生 `pnpm publish` 支持 npm Trusted Publishing）。
 
-新增 `@techs/dsh-decision-openrouter` 需要先在 npm 创建包，再为该包绑定 Trusted Publisher；无需因此将所有包升级到 `1.0.0`。首次创建、绑定和后续正式发布的完整步骤见[OpenRouter 首次发布与自动发布配置](releasing.md)。GitHub 字段使用 `yourtion/dsh-decision`、`release.yml`，environment 留空，并允许直接 `npm publish`。后续正式发布仍按仓库现有规则统一包版本、推送匹配的 `vX.Y.Z` 标签，通过 OIDC 发布，不需要 `NPM_TOKEN`。
+正式发布时，将五个 `packages/*/package.json` 更新到同一未发布版本，提交后推送匹配的 `vX.Y.Z` 标签。`.github/workflows/release.yml` 会执行完整校验、校验标签版本、创建 GitHub release，并按依赖顺序发布核心、适配器和 Pi；已存在的版本会跳过。所有待发布包都需要有效的 npm Trusted Publisher，使用 `yourtion/dsh-decision`、`release.yml`、空 environment，并允许直接 `npm publish`。CI 通过 OIDC 认证，不需要 `NPM_TOKEN`。首次正式 OpenRouter 功能需要配套的新版核心；使用 `0.2.1` 或更新版本，不能覆盖已有的 `0.2.0`。
 
 接入其他概率判断模型时，实现 `@techs/dsh-decision` 的 `JudgmentProvider`，把该模型的请求与响应映射为具名的 `JudgmentRequest` / `JudgmentResult`，声明支持的 binary、categorical、ordinal 问题类型，并注册到 `ctx.decision`：
 
