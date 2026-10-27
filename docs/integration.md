@@ -272,7 +272,7 @@ live 模式默认使用 50 样本的 `fixtures-expanded-v1.json`，对带用户�
 
 `packages/decision` 提供不引入 Cordis/Schemastery 运行时依赖的 `./kernel` 子路径，`packages/decision-jev` 提供 `./provider` 和 `./spec` 子路径，pi 扩展只在类型位置导入 pi 的 `ExtensionAPI`。本地 `pi -e` 和 `pi install ./packages/pi-decision` 依赖 pnpm workspace 链接（pnpm 版本由根 `package.json` 的 `packageManager` 锁定为 11.27.1，11 的原生 `pnpm publish` 支持 npm Trusted Publishing）。
 
-首次 `1.0.0` 先在本地登录 npm，按依赖顺序发布五个包，再为各包绑定 Trusted Publisher；完整命令见[首次发布与后续自动发布](releasing.md)。绑定需允许直接 `npm publish`，GitHub 字段使用 `yourtion/dsh-decision`、`release.yml`，environment 留空。之后更新所有包到相同版本并推送 `vX.Y.Z` 标签，`.github/workflows/release.yml` 自动校验、创建 GitHub release 并按依赖顺序发布，跳过已经存在的版本。npm 认证走 OIDC，不需要 `NPM_TOKEN`。
+新增 `@techs/dsh-decision-openrouter` 需要先在 npm 创建包，再为该包绑定 Trusted Publisher；无需因此将所有包升级到 `1.0.0`。首次创建、绑定和后续正式发布的完整步骤见[OpenRouter 首次发布与自动发布配置](releasing.md)。GitHub 字段使用 `yourtion/dsh-decision`、`release.yml`，environment 留空，并允许直接 `npm publish`。后续正式发布仍按仓库现有规则统一包版本、推送匹配的 `vX.Y.Z` 标签，通过 OIDC 发布，不需要 `NPM_TOKEN`。
 
 接入其他概率判断模型时，实现 `@techs/dsh-decision` 的 `JudgmentProvider`，把该模型的请求与响应映射为具名的 `JudgmentRequest` / `JudgmentResult`，声明支持的 binary、categorical、ordinal 问题类型，并注册到 `ctx.decision`：
 

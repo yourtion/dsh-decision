@@ -1,60 +1,36 @@
-# 首次本地发布与后续自动发布
+# OpenRouter 首次发布与自动发布配置
 
-本仓库的五个包统一发布为 `1.0.0`。先在本地发布到 npm，使新包存在，再为每个包配置 Trusted Publisher，之后通过版本标签触发 GitHub Actions 自动发布。
+目标是先让新增的 `@techs/dsh-decision-openrouter` 在 npm 上存在，以便配置 Trusted Publisher；不要求发布 `1.0.0`，也不需要为初始化改动其他包的版本。仓库各包继续保持 `0.2.0`。
 
-| 顺序 | 目录                           | npm 包                           |
-| ---- | ------------------------------ | -------------------------------- |
-| 1    | `packages/decision`            | `@techs/dsh-decision`            |
-| 2    | `packages/decision-jev`        | `@techs/dsh-decision-jev`        |
-| 3    | `packages/decision-openai`     | `@techs/dsh-decision-openai`     |
-| 4    | `packages/decision-openrouter` | `@techs/dsh-decision-openrouter` |
-| 5    | `packages/pi-decision`         | `@techs/pi-decision`             |
+## 1. 创建 OpenRouter 的初始化发布包
 
-根目录 monorepo 和 `profile` 是私有工作区，不发布。`workspace:~` 依赖由 **pnpm** 打包/发布时替换为 `~1.0.0`，因此不要对源码包直接使用 `npm publish`。
+当前适配器依赖本次 PR 新增的核心导出 `validateJudgmentRequest`。npm 上已发布的 `@techs/dsh-decision@0.2.0` 没有该导出，因此不能把当前适配器源码单独当作可立即使用的正式版本发布。
 
-## 1. 在本机准备源码和 npm 登录
+只为创建 npm 包并配置自动发布时，使用独立的 `0.0.0-bootstrap.0` 初始化版本，发布到 `bootstrap` 标签。它只包含初始化说明和明确报错的占位入口，不包含适配器功能、运行时依赖或任何凭证；不更新源码包版本，也不设置 `latest`。
 
-先将包含 `1.0.0` 版本号的 PR 合并，拉取已合并的代码。需要有 `@techs` scope 的发布权限。使用 Node 24、仓库指定的 pnpm；命令行配置 Trusted Publisher 还要求 npm >= 11.15.0、账号启用 2FA。
+从仓库根目录运行：
 
 ```sh
-git switch main
-git pull --ff-only
-npm install --global pnpm@11.27.1 'npm@^11.15.0'
+node scripts/prepare-openrouter-bootstrap.mjs
+```
+
+脚本只在临时目录生成 tarball，不会发布或修改 npm 配置。根据输出的 tarball 路径，在本机登录有 `@techs` 发布权限的 npm 账号后发布：
+
+```sh
 npm login --registry=https://registry.npmjs.org
 npm whoami --registry=https://registry.npmjs.org
-pnpm install --frozen-lockfile
-pnpm run typecheck
-pnpm run test
-pnpm run lint
-pnpm run fmt
+npm publish /实际输出路径/techs-dsh-decision-openrouter-0.0.0-bootstrap.0.tgz \
+  --access public --tag bootstrap --registry=https://registry.npmjs.org
+npm view @techs/dsh-decision-openrouter@bootstrap version
 ```
 
-## 2. 本地发布 1.0.0
+首次发布可能要求浏览器或 2FA 验证。若初始化版本已经存在，检查包归属和内容后直接进入配置步骤，不重复发布同一个版本。
 
-从仓库根目录执行。发布会公开到 npm，并可能要求浏览器或 2FA 验证。按包顺序执行，核心和 adapter 在 Pi 之前。
+该初始化包不能用作运行时适配器。若首次发布就需要可安装使用的完整功能，应先选择一个尚未发布的正式版本，同时发布包含新增导出的核心，再发布依赖该核心的适配器；`0.2.0` 不能被覆盖。
 
-```sh
-set -eu
-for dir in decision decision-jev decision-openai decision-openrouter pi-decision; do
-  (
-    cd "packages/$dir"
-    node --input-type=module -e '
-      import fs from "node:fs";
-      const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
-      if (pkg.version !== "1.0.0") throw new Error(`${pkg.name}: expected version 1.0.0`);
-    '
-    pnpm publish --access public --tag latest
-  )
-done
-```
+## 2. 仅为 OpenRouter 配置 Trusted Publisher
 
-若中途失败，已成功发布的版本不可覆盖。先用 `npm view @techs/包名@1.0.0 version` 确认已发布项，再仅重试剩余目录；不要通过 unpublish 重发同一版本。账号认证或 2FA 失败时，先在本机完成登录/验证。
-
-可以在发布前执行 `pnpm --filter @techs/包名 pack --pack-destination /tmp/dsh-release-1.0.0` 检查 tarball。包内应包含构建后的入口、声明、README 和许可证；adapter 与 Pi 的内部依赖不应残留 `workspace:`。
-
-## 3. 为五个包配置 Trusted Publisher
-
-npm 要求包先存在。每个包都要单独绑定；五个包共用以下字段，但不会自动继承配置。
+包创建后，在 npm 网页的 `@techs/dsh-decision-openrouter` → Settings → Trusted publishing 中绑定：
 
 | 字段                 | 值                                                          |
 | -------------------- | ----------------------------------------------------------- |
@@ -65,40 +41,32 @@ npm 要求包先存在。每个包都要单独绑定；五个包共用以下字�
 | Environment          | 留空，workflow 当前未配置 environment                       |
 | Allowed action       | **Allow npm publish**；仅允许 stage 不足以运行现有 workflow |
 
-可在 npm 网页的各包 Settings → Trusted publishing 配置，也可在本机登录后使用 CLI：
+也可使用 npm >= 11.15.0 的 CLI，在已登录并启用账号 2FA 的本机执行：
 
 ```sh
-set -eu
-for pkg in \
-  @techs/dsh-decision \
-  @techs/dsh-decision-jev \
-  @techs/dsh-decision-openai \
-  @techs/dsh-decision-openrouter \
-  @techs/pi-decision; do
-  npm trust github "$pkg" \
-    --repo yourtion/dsh-decision \
-    --file release.yml \
-    --allow-publish \
-    --yes
-  sleep 2
-done
+npm trust github @techs/dsh-decision-openrouter \
+  --repo yourtion/dsh-decision \
+  --file release.yml \
+  --allow-publish \
+  --yes
+npm trust list @techs/dsh-decision-openrouter
 ```
 
-CLI 可能要求交互式 2FA。已有相同配置时先 `npm trust list @techs/包名` 检查，复用已有配置，不要盲目撤销其他有效绑定。较新 npm 支持多条绑定；旧版 CLI 的数量限制以该版本文档和实际返回为准。
+CLI 可能要求交互式 2FA。已有有效绑定时先检查并复用，不要盲目撤销其他配置。无需因此重发或重配已有包；其他尚未创建或绑定的新包则需要各自完成初始化，不能继承 OpenRouter 的绑定。
 
-新绑定需要在 **2 天内**完成首次 OIDC 发布，否则会过期；本地登录发布不验证 CI 绑定。若暂不准备发下一个版本，可以等下一次发布前再创建绑定。也可以在本地 `1.0.0` 发布完成后立即准备小版本 `1.0.1`，通过下一节的标签发布验证 OIDC。推送 `v1.0.0` 时 workflow 会跳过已经发布的五个版本，因此它只能补建 GitHub release，不能验证 OIDC 发布权限。
+新绑定需要在 **2 天内**完成首次 OIDC 发布，否则会过期。本地发布初始化包不验证 CI 绑定；若暂不准备正式发布，可以等正式发布前再创建绑定。
 
-## 4. 后续自动发布
+## 3. 后续正式版本由 CI 发布
 
-将五个 `packages/*/package.json` 更新到同一新版本，例如 `1.0.1`，更新 changelog 后提交并推送 `main`。确认工作区干净，再创建匹配标签：
+首次正式发布必须包含更新后的核心与适配器。现有 workflow 要求所有 `packages/*/package.json` 与标签版本一致；例如之后选择 `0.2.1`，更新版本号和 changelog，合并源码并确认 CI 通过后：
 
 ```sh
-git tag -a v1.0.1 -m 'Release 1.0.1'
-git push origin v1.0.1
+git tag -a v0.2.1 -m 'Release 0.2.1'
+git push origin v0.2.1
 ```
 
-workflow 会校验版本、构建、测试、lint 和格式，创建 GitHub release，再按依赖顺序发布。它使用 GitHub-hosted runner、`id-token: write` 与 OIDC，不需要配置 `NPM_TOKEN`。部分包已发布时会跳过；失败后修复认证/绑定再重跑该次 workflow。
+workflow 会构建、测试、校验版本，再按依赖顺序发布核心、适配器和 Pi。`workspace:~` 在 **pnpm** 打包/发布时替换为实际版本范围，因此正式源码包使用 `pnpm publish`，不要直接用 `npm publish`。
 
-不要在首次本地发布和绑定完成前，依赖推送标签去创建缺失的新包。后续若新增 npm 包，也需要为该新包重复首次创建与绑定步骤。
+初始化用的 `0.0.0-bootstrap.0` 与正式版本不同，不会导致 CI 跳过首次正式发布。CI 使用 GitHub-hosted runner、`id-token: write` 和 OIDC，不需要 `NPM_TOKEN`；整个 workflow 中每个待发布包仍需有各自有效的 Trusted Publisher。
 
 官方参考：[npm trust CLI](https://docs.npmjs.com/cli/v11/commands/npm-trust/) · [Trusted publishing](https://docs.npmjs.com/trusted-publishers/)
