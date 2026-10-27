@@ -1,12 +1,8 @@
 /** Host-neutral Jev settings. No Cordis or Schemastery imports. */
 import type { JevConfig } from "./config.js";
+import type { DecisionConnectionSpec } from "@techs/dsh-decision/kernel";
 
-export interface JevSpec {
-  readonly baseUrl: string;
-  readonly apiKey: string;
-  readonly model: string;
-  readonly timeoutMs: number;
-}
+export type JevSpec = DecisionConnectionSpec;
 
 export function resolveJevConfig(config: JevConfig): JevSpec {
   let apiKey = config.apiKey;

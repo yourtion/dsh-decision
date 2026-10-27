@@ -1,11 +1,12 @@
 {
   "name": "@techs/pi-decision",
-  "version": "0.2.0",
-  "description": "Tool guardrail for pi with Jev and OpenAI Decisions judgment providers",
+  "version": "0.2.1",
+  "description": "Tool guardrail for pi with Jev, OpenAI and OpenRouter Decisions providers",
   "keywords": [
     "guardrail",
     "jev",
     "openai",
+    "openrouter",
     "pi-extension",
     "pi-package"
   ],
@@ -36,7 +37,8 @@
   "dependencies": {
     "@techs/dsh-decision": "workspace:~",
     "@techs/dsh-decision-jev": "workspace:~",
-    "@techs/dsh-decision-openai": "workspace:~"
+    "@techs/dsh-decision-openai": "workspace:~",
+    "@techs/dsh-decision-openrouter": "workspace:~"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "^0.87.1",

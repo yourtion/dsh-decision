@@ -10,6 +10,7 @@ import {
 } from "@techs/dsh-decision/kernel";
 import { resolveJevConfig, type JevSpec } from "@techs/dsh-decision-jev/spec";
 import { resolveOpenAIConfig, type OpenAISpec } from "@techs/dsh-decision-openai/spec";
+import { resolveOpenRouterConfig, type OpenRouterSpec } from "@techs/dsh-decision-openrouter/spec";
 
 export interface PiGuardrailSpec {
   readonly mode: DecisionMode;
@@ -19,8 +20,28 @@ export interface PiGuardrailSpec {
   readonly audit: { readonly enabled: boolean; readonly path: string };
 }
 
-export function resolvePiProviderId(env: NodeJS.ProcessEnv): "jev" | "openai" {
-  return choice(env.PI_DECISION_PROVIDER, ["jev", "openai"], "PI_DECISION_PROVIDER", "jev");
+export function resolvePiProviderId(env: NodeJS.ProcessEnv): "jev" | "openai" | "openrouter" {
+  return choice(
+    env.PI_DECISION_PROVIDER,
+    ["jev", "openai", "openrouter"],
+    "PI_DECISION_PROVIDER",
+    "jev",
+  );
+}
+
+export function resolvePiOpenRouterSpec(env: NodeJS.ProcessEnv): OpenRouterSpec {
+  const rawTimeout = env.PI_DECISION_OPENROUTER_TIMEOUT_MS;
+  if (rawTimeout && !/^\d+$/.test(rawTimeout)) {
+    throw new Error("pi-decision: PI_DECISION_OPENROUTER_TIMEOUT_MS must be a positive integer.");
+  }
+  return resolveOpenRouterConfig(
+    {
+      baseUrl: env.PI_DECISION_OPENROUTER_BASE_URL,
+      model: env.PI_DECISION_OPENROUTER_MODEL,
+      timeoutMs: rawTimeout ? Number(rawTimeout) : undefined,
+    },
+    env,
+  );
 }
 
 export function resolvePiOpenAISpec(env: NodeJS.ProcessEnv): OpenAISpec {

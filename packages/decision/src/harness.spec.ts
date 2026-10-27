@@ -227,7 +227,7 @@ describe("DSH event seam integration", () => {
             tier: {
               kind: "choice",
               choice: "large",
-              probabilities: { small: 0.1, large: 0.9 },
+              probabilities: { small: 0.1, large: 0.9, insufficient_context: 0 },
               confidence: 0.9,
             },
           };
@@ -291,7 +291,7 @@ describe("DSH event seam integration", () => {
               provider: "jev",
               model: "qualified-model",
               answers: Object.fromEntries(
-                GUARDRAIL_RISKS.map((risk) => [
+                Object.keys(request.questions).map((risk) => [
                   risk,
                   { kind: "binary", probability: risk === "destructive" ? 0.5 : 0.01 },
                 ]),
@@ -522,7 +522,7 @@ describe("DSH event seam integration", () => {
                   tier: {
                     kind: "categorical",
                     choice: "large",
-                    probabilities: { large: 1 },
+                    probabilities: { large: 1, insufficient_context: 0 },
                     confidence: 1,
                   },
                 },
@@ -656,11 +656,11 @@ describe("DSH event seam integration", () => {
       id: "jev",
       model: "test-model",
       capabilities: () => ({ binary: true, categorical: false, ordinal: false }),
-      evaluate: async () => ({
+      evaluate: async (request) => ({
         provider: "jev",
         model: "test-model",
         answers: Object.fromEntries(
-          GUARDRAIL_RISKS.map((risk) => [
+          Object.keys(request.questions).map((risk) => [
             risk,
             { kind: "binary", probability: risk === "destructive" ? 0.95 : 0.01 },
           ]),

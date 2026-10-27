@@ -4,7 +4,7 @@
 
 为 `@techs/dsh-decision` 接入 [OpenAI Decisions API](https://developers.openai.com/api/docs/guides/decisions)：调用 `POST /v1/decisions`，将原生 predicate、choice、score 映射为核心的 Binary、Categorical、Ordinal。协议依据 [API reference](https://developers.openai.com/api/reference/resources/decisions/methods/create)。
 
-接口目前为 public beta，支持 `gpt-6-luna`。本包不声明机器审批自动放行资格；Jev 阈值需要在 OpenAI 上重新评估后才能用于 enforce。
+接口已正式可用（GA），支持 `gpt-6-luna`。本包不声明机器审批自动放行资格；Jev 阈值需要在 OpenAI 上重新评估后才能用于 enforce。
 
 | 配置        | 默认                        | 作用                                   |
 | ----------- | --------------------------- | -------------------------------------- |

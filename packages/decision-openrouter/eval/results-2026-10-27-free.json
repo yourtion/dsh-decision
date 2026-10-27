@@ -1,0 +1,1240 @@
+{
+  "evaluatedAt": "2026-10-27T13:11:06.339Z",
+  "scope": "Synthetic text/JSON protocol and behavior smoke test; not threshold calibration or a production approval qualification.",
+  "repeat": 2,
+  "models": ["baseten/mammoth-1:free", "baseten/elephant-1:free"],
+  "rows": [
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "en-cancellation",
+      "run": 1,
+      "latencyMs": 9294,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.9993842981349558
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.995176896398095,
+              "technical": 0.0018815628788562439,
+              "other": 0.0029415407230488017
+            },
+            "confidence": 0.9927653445971424
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.9973023230089868,
+            "probabilities": {
+              "0": 0.0426057324761196,
+              "1": 0.9174862120387742,
+              "2": 0.03990805548510628
+            },
+            "confidence": 0.8762293180581612
+          }
+        },
+        "usage": {
+          "inputTokens": 291,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "en-outage",
+      "run": 1,
+      "latencyMs": 11787,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0004959737690832497
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "technical",
+            "probabilities": {
+              "billing": 0.0009331993756664592,
+              "technical": 0.9986817688489963,
+              "other": 0.0003850317753372917
+            },
+            "confidence": 0.9980226532734943
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 1.9983977766482937,
+            "probabilities": {
+              "0": 0.0003139131815548725,
+              "1": 0.0009743969885967914,
+              "2": 0.9987116898298485
+            },
+            "confidence": 0.9975966649724402
+          }
+        },
+        "usage": {
+          "inputTokens": 301,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "en-general",
+      "run": 1,
+      "latencyMs": 308,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0014951982024357638
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "other",
+            "probabilities": {
+              "billing": 0.0047759413745567065,
+              "technical": 0.0038879169951130683,
+              "other": 0.9913361416303302
+            },
+            "confidence": 0.9870042124454952
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.0021260381426455453,
+            "probabilities": {
+              "0": 0.9980931620623769,
+              "1": 0.001687637732600559,
+              "2": 0.00021920020502249308
+            },
+            "confidence": 0.9968109427860317
+          }
+        },
+        "usage": {
+          "inputTokens": 298,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "zh-cancellation",
+      "run": 1,
+      "latencyMs": 235,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.999536013904621
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.9970778925154979,
+              "technical": 0.0011052354886231395,
+              "other": 0.0018168719958789484
+            },
+            "confidence": 0.9956168387732469
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.9964286439836093,
+            "probabilities": {
+              "0": 0.021266968535805685,
+              "1": 0.9610374189447792,
+              "2": 0.01769561251941505
+            },
+            "confidence": 0.9415561284171688
+          }
+        },
+        "usage": {
+          "inputTokens": 293,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "zh-outage",
+      "run": 1,
+      "latencyMs": 472,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0007675849428065446
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "technical",
+            "probabilities": {
+              "billing": 0.013093202758913663,
+              "technical": 0.9861707932760331,
+              "other": 0.0007360039650531207
+            },
+            "confidence": 0.9792561899140496
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 1.9961515341637808,
+            "probabilities": {
+              "0": 0.0007268889374928796,
+              "1": 0.002394687961233525,
+              "2": 0.9968784231012736
+            },
+            "confidence": 0.994227301245671
+          }
+        },
+        "usage": {
+          "inputTokens": 300,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "zh-general",
+      "run": 1,
+      "latencyMs": 342,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0005560872858675667
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "other",
+            "probabilities": {
+              "billing": 0.00047107852339680516,
+              "technical": 0.0010165165421796166,
+              "other": 0.9985124049344236
+            },
+            "confidence": 0.9977686074016354
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.0025532911551301983,
+            "probabilities": {
+              "0": 0.9976484922485124,
+              "1": 0.0021497243478451455,
+              "2": 0.00020178340364252644
+            },
+            "confidence": 0.9961700632673047
+          }
+        },
+        "usage": {
+          "inputTokens": 293,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "en-cancellation",
+      "run": 2,
+      "latencyMs": 298,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.9995851895049143
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.9960666768067333,
+              "technical": 0.0014669330000285162,
+              "other": 0.002466390193238126
+            },
+            "confidence": 0.9941000152100998
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 1.0028693032967644,
+            "probabilities": {
+              "0": 0.03155115782916516,
+              "1": 0.9340283810449053,
+              "2": 0.0344204611259296
+            },
+            "confidence": 0.9010425715673579
+          }
+        },
+        "usage": {
+          "inputTokens": 291,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "en-outage",
+      "run": 2,
+      "latencyMs": 351,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0005310020224599098
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "technical",
+            "probabilities": {
+              "billing": 0.0019216702846305241,
+              "technical": 0.9973631745743787,
+              "other": 0.0007151551409908764
+            },
+            "confidence": 0.9960447618615681
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 1.9980249288966654,
+            "probabilities": {
+              "0": 0.00032630694115936095,
+              "1": 0.0013224572210157532,
+              "2": 0.9983512358378248
+            },
+            "confidence": 0.9970373933449983
+          }
+        },
+        "usage": {
+          "inputTokens": 301,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "en-general",
+      "run": 2,
+      "latencyMs": 456,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0014951982024357638
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "other",
+            "probabilities": {
+              "billing": 0.0047759413745567065,
+              "technical": 0.0038879169951130683,
+              "other": 0.9913361416303302
+            },
+            "confidence": 0.9870042124454952
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.0021260381426455453,
+            "probabilities": {
+              "0": 0.9980931620623769,
+              "1": 0.001687637732600559,
+              "2": 0.00021920020502249308
+            },
+            "confidence": 0.9968109427860317
+          }
+        },
+        "usage": {
+          "inputTokens": 298,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "zh-cancellation",
+      "run": 2,
+      "latencyMs": 357,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.999536013904621
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.9970778925154979,
+              "technical": 0.0011052354886231395,
+              "other": 0.0018168719958789484
+            },
+            "confidence": 0.9956168387732469
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.9964286439836093,
+            "probabilities": {
+              "0": 0.021266968535805685,
+              "1": 0.9610374189447792,
+              "2": 0.01769561251941505
+            },
+            "confidence": 0.9415561284171688
+          }
+        },
+        "usage": {
+          "inputTokens": 293,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "zh-outage",
+      "run": 2,
+      "latencyMs": 325,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0007675849428065446
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "technical",
+            "probabilities": {
+              "billing": 0.013093202758913663,
+              "technical": 0.9861707932760331,
+              "other": 0.0007360039650531207
+            },
+            "confidence": 0.9792561899140496
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 1.9961515341637808,
+            "probabilities": {
+              "0": 0.0007268889374928796,
+              "1": 0.002394687961233525,
+              "2": 0.9968784231012736
+            },
+            "confidence": 0.994227301245671
+          }
+        },
+        "usage": {
+          "inputTokens": 300,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/mammoth-1:free",
+      "fixture": "zh-general",
+      "run": 2,
+      "latencyMs": 322,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/mammoth-1:free",
+        "requestedModel": "baseten/mammoth-1:free",
+        "resolvedModel": "baseten/mammoth-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0005560872858675667
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "other",
+            "probabilities": {
+              "billing": 0.00047107852339680516,
+              "technical": 0.0010165165421796166,
+              "other": 0.9985124049344236
+            },
+            "confidence": 0.9977686074016354
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.0025532911551301983,
+            "probabilities": {
+              "0": 0.9976484922485124,
+              "1": 0.0021497243478451455,
+              "2": 0.00020178340364252644
+            },
+            "confidence": 0.9961700632673047
+          }
+        },
+        "usage": {
+          "inputTokens": 293,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "en-cancellation",
+      "run": 1,
+      "latencyMs": 321,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.9991702353017456
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.99936494665824,
+              "technical": 0.0003137118140828927,
+              "other": 0.0003213415276771043
+            },
+            "confidence": 0.9990474199873599
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.9131689794056402,
+            "probabilities": {
+              "0": 0.10203697111845547,
+              "1": 0.8827570783574488,
+              "2": 0.015205950524095709
+            },
+            "confidence": 0.8241356175361733
+          }
+        },
+        "usage": {
+          "inputTokens": 291,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "en-outage",
+      "run": 1,
+      "latencyMs": 431,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0003112135679316972
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "technical",
+            "probabilities": {
+              "billing": 0.00515961112011017,
+              "technical": 0.9947450789278761,
+              "other": 9.530995201364674e-5
+            },
+            "confidence": 0.992117618391814
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 1.9833153007587019,
+            "probabilities": {
+              "0": 0.005069924688206715,
+              "1": 0.006544849864884668,
+              "2": 0.9883852254469087
+            },
+            "confidence": 0.9749729511380528
+          }
+        },
+        "usage": {
+          "inputTokens": 301,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "en-general",
+      "run": 1,
+      "latencyMs": 323,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.00021760769097367515
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "other",
+            "probabilities": {
+              "billing": 0.0038715327474249544,
+              "technical": 0.0013765324200399323,
+              "other": 0.994751934832535
+            },
+            "confidence": 0.9921279022488023
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.021486687539146506,
+            "probabilities": {
+              "0": 0.9806630280918605,
+              "1": 0.017187256277132548,
+              "2": 0.0021497156310069797
+            },
+            "confidence": 0.9677699686912802
+          }
+        },
+        "usage": {
+          "inputTokens": 298,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "zh-cancellation",
+      "run": 1,
+      "latencyMs": 235,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.9963497493765902
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.9997995447444207,
+              "technical": 8.310679931414535e-5,
+              "other": 0.00011734845626493907
+            },
+            "confidence": 0.9996993171166308
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.9533919936992205,
+            "probabilities": {
+              "0": 0.06802671135942862,
+              "1": 0.9105545835819222,
+              "2": 0.021418705058649106
+            },
+            "confidence": 0.8658318753728834
+          }
+        },
+        "usage": {
+          "inputTokens": 293,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "zh-outage",
+      "run": 1,
+      "latencyMs": 262,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0004941567306527672
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "technical",
+            "probabilities": {
+              "billing": 0.0355162447847691,
+              "technical": 0.9641467469697349,
+              "other": 0.0003370082454959871
+            },
+            "confidence": 0.9462201204546024
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 1.9931657894447943,
+            "probabilities": {
+              "0": 0.0018753733882481518,
+              "1": 0.003083463778709434,
+              "2": 0.9950411628330424
+            },
+            "confidence": 0.9897486841671914
+          }
+        },
+        "usage": {
+          "inputTokens": 300,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "zh-general",
+      "run": 1,
+      "latencyMs": 262,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0002616838550406895
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "other",
+            "probabilities": {
+              "billing": 0.0004442245988910322,
+              "technical": 0.00027046174906922917,
+              "other": 0.9992853136520398
+            },
+            "confidence": 0.9989279704780595
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.002654720198481131,
+            "probabilities": {
+              "0": 0.9978244015146622,
+              "1": 0.0016964767721945567,
+              "2": 0.0004791217131432872
+            },
+            "confidence": 0.9960179197022783
+          }
+        },
+        "usage": {
+          "inputTokens": 293,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "en-cancellation",
+      "run": 2,
+      "latencyMs": 299,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.9991702353017456
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.99936494665824,
+              "technical": 0.0003137118140828927,
+              "other": 0.0003213415276771043
+            },
+            "confidence": 0.9990474199873599
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.9131689794056402,
+            "probabilities": {
+              "0": 0.10203697111845547,
+              "1": 0.8827570783574488,
+              "2": 0.015205950524095709
+            },
+            "confidence": 0.8241356175361733
+          }
+        },
+        "usage": {
+          "inputTokens": 291,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "en-outage",
+      "run": 2,
+      "latencyMs": 302,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0003112135679316972
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "technical",
+            "probabilities": {
+              "billing": 0.00515961112011017,
+              "technical": 0.9947450789278761,
+              "other": 9.530995201364674e-5
+            },
+            "confidence": 0.992117618391814
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 1.9833153007587019,
+            "probabilities": {
+              "0": 0.005069924688206715,
+              "1": 0.006544849864884668,
+              "2": 0.9883852254469087
+            },
+            "confidence": 0.9749729511380528
+          }
+        },
+        "usage": {
+          "inputTokens": 301,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "en-general",
+      "run": 2,
+      "latencyMs": 218,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.00021760769097367515
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "other",
+            "probabilities": {
+              "billing": 0.0038715327474249544,
+              "technical": 0.0013765324200399323,
+              "other": 0.994751934832535
+            },
+            "confidence": 0.9921279022488023
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.021486687539146506,
+            "probabilities": {
+              "0": 0.9806630280918605,
+              "1": 0.017187256277132548,
+              "2": 0.0021497156310069797
+            },
+            "confidence": 0.9677699686912802
+          }
+        },
+        "usage": {
+          "inputTokens": 298,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "zh-cancellation",
+      "run": 2,
+      "latencyMs": 241,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.9963497493765902
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.9997995447444207,
+              "technical": 8.310679931414535e-5,
+              "other": 0.00011734845626493907
+            },
+            "confidence": 0.9996993171166308
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.9533919936992205,
+            "probabilities": {
+              "0": 0.06802671135942862,
+              "1": 0.9105545835819222,
+              "2": 0.021418705058649106
+            },
+            "confidence": 0.8658318753728834
+          }
+        },
+        "usage": {
+          "inputTokens": 293,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "zh-outage",
+      "run": 2,
+      "latencyMs": 255,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0004941567306527672
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "technical",
+            "probabilities": {
+              "billing": 0.0355162447847691,
+              "technical": 0.9641467469697349,
+              "other": 0.0003370082454959871
+            },
+            "confidence": 0.9462201204546024
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 1.9931657894447943,
+            "probabilities": {
+              "0": 0.0018753733882481518,
+              "1": 0.003083463778709434,
+              "2": 0.9950411628330424
+            },
+            "confidence": 0.9897486841671914
+          }
+        },
+        "usage": {
+          "inputTokens": 300,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    },
+    {
+      "model": "baseten/elephant-1:free",
+      "fixture": "zh-general",
+      "run": 2,
+      "latencyMs": 210,
+      "protocolPassed": true,
+      "behaviorPassed": true,
+      "zeroCostConfirmed": true,
+      "checks": {
+        "cancellation": true,
+        "department": true,
+        "urgency": true
+      },
+      "result": {
+        "provider": "openrouter",
+        "model": "baseten/elephant-1:free",
+        "requestedModel": "baseten/elephant-1:free",
+        "resolvedModel": "baseten/elephant-1-20261021",
+        "answers": {
+          "cancellation": {
+            "kind": "binary",
+            "probability": 0.0002616838550406895
+          },
+          "department": {
+            "kind": "categorical",
+            "choice": "other",
+            "probabilities": {
+              "billing": 0.0004442245988910322,
+              "technical": 0.00027046174906922917,
+              "other": 0.9992853136520398
+            },
+            "confidence": 0.9989279704780595
+          },
+          "urgency": {
+            "kind": "ordinal",
+            "score": 0.002654720198481131,
+            "probabilities": {
+              "0": 0.9978244015146622,
+              "1": 0.0016964767721945567,
+              "2": 0.0004791217131432872
+            },
+            "confidence": 0.9960179197022783
+          }
+        },
+        "usage": {
+          "inputTokens": 293,
+          "outputTokens": 3,
+          "costUsd": 0
+        }
+      }
+    }
+  ],
+  "summary": {
+    "plannedRequests": 24,
+    "completedRequests": 24,
+    "protocolPassed": 24,
+    "behaviorPassed": 24,
+    "zeroCostConfirmed": 24,
+    "reportedCostUsd": 0
+  }
+}

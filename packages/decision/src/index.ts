@@ -52,7 +52,7 @@ export type {
 export { DecisionRuntime } from "./service.js";
 export { DecisionError, ProviderValidationError } from "./types.js";
 export { validateAnswer } from "./validation.js";
-export { validateJudgmentResult } from "./judgment-validation.js";
+export { validateJudgmentRequest, validateJudgmentResult } from "./judgment-validation.js";
 export { redactText, redactValue } from "./privacy/sanitizer.js";
 export type { OutboundPrivacy, RedactionResult } from "./privacy/sanitizer.js";
 export {
@@ -101,6 +101,9 @@ export type {
   JudgmentAnswer,
   JudgmentRequest,
   JudgmentResult,
+  JudgmentUsage,
+  DecisionConnectionConfig,
+  DecisionConnectionSpec,
   JudgmentProvider,
   JudgmentCapabilities,
   CalibrationProfile,

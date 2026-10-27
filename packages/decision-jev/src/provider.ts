@@ -1,10 +1,13 @@
 /** Neutral JudgmentProvider facade over the Jev wire client. */
 import {
   ProviderValidationError,
+  validateJudgmentRequest,
+  validateJudgmentResult,
   type DecisionQuestion,
   type JudgmentAnswer,
   type JudgmentProvider,
   type JudgmentQuestion,
+  type JudgmentResult,
 } from "@techs/dsh-decision/kernel";
 import { createJevAdapter } from "./client.js";
 import type { JevSpec } from "./spec.js";
@@ -30,6 +33,8 @@ export function createJevProvider(
     model: spec.model,
     capabilities: () => ({ binary: true, categorical: true, ordinal: true, calibration: [] }),
     async evaluate(request, signal) {
+      signal?.throwIfAborted();
+      validateJudgmentRequest(request);
       const questions = Object.fromEntries(
         Object.entries(request.questions).map(([key, question]) => [key, toJev(question)]),
       );
@@ -66,13 +71,16 @@ export function createJevProvider(
             throw new ProviderValidationError(`jev: missing answer for "${key}".`);
         }
       }
-      return {
+      const result: JudgmentResult = {
         provider: "jev",
         model: spec.model,
         requestedModel: spec.model,
         ...(evaluation.model === undefined ? {} : { resolvedModel: evaluation.model }),
         answers,
+        ...(evaluation.usage === undefined ? {} : { usage: evaluation.usage }),
       };
+      validateJudgmentResult(request, result);
+      return result;
     },
   };
 }

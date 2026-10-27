@@ -1,7 +1,7 @@
 /**
  * Jev adapter: thin HTTP client for the TypeSafe System One wire format.
- * Works against the official TypeSafe endpoint (api.typesafe.ai), the Vercel
- * AI Gateway, and OpenRouter — the JSON is the same, only `baseUrl` differs.
+ * Works against the official TypeSafe endpoint (api.typesafe.ai) and Vercel
+ * AI Gateway. OpenRouter Decisions uses its own adapter and endpoint path.
  * @module dsh-decision-jev/client
  */
 
@@ -16,6 +16,7 @@ import {
   type DecisionRequest,
   type NoulAnswer,
   type ScoreAnswer,
+  type JudgmentUsage,
 } from "@techs/dsh-decision/kernel";
 import type { JevSpec } from "./spec.js";
 
@@ -116,6 +117,7 @@ export interface JevEvaluation {
   readonly answers: Readonly<Record<string, DecisionAnswer>>;
   /** Actual model reported by the endpoint; absent when it is not provided. */
   readonly model?: string;
+  readonly usage?: JudgmentUsage;
 }
 
 export interface JevAdapter extends DecisionAdapter {
@@ -191,7 +193,34 @@ export function createJevAdapter(spec: JevSpec, fetchImpl: typeof fetch = fetch)
     if (model !== undefined && (typeof model !== "string" || model.trim() === "")) {
       throw new ProviderValidationError("jev: response model must be a non-empty string.");
     }
-    return { answers: mapped, ...(typeof model === "string" ? { model } : {}) };
+    const rawUsage = (payload as { usage?: unknown }).usage;
+    let usage: JudgmentUsage | undefined;
+    if (rawUsage !== undefined) {
+      if (rawUsage === null || typeof rawUsage !== "object" || Array.isArray(rawUsage)) {
+        throw new ProviderValidationError("jev: malformed usage.");
+      }
+      const value = rawUsage as Record<string, unknown>;
+      if (
+        !Number.isSafeInteger(value.input_tokens) ||
+        (value.input_tokens as number) < 0 ||
+        !Number.isSafeInteger(value.output_tokens) ||
+        (value.output_tokens as number) < 0 ||
+        (value.cost !== undefined &&
+          (typeof value.cost !== "number" || !Number.isFinite(value.cost) || value.cost < 0))
+      ) {
+        throw new ProviderValidationError("jev: malformed usage.");
+      }
+      usage = {
+        inputTokens: value.input_tokens as number,
+        outputTokens: value.output_tokens as number,
+        ...(value.cost === undefined ? {} : { costUsd: value.cost as number }),
+      };
+    }
+    return {
+      answers: mapped,
+      ...(typeof model === "string" ? { model } : {}),
+      ...(usage === undefined ? {} : { usage }),
+    };
   };
   return {
     id: "jev",

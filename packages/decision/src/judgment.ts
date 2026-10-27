@@ -1,5 +1,21 @@
 import type { DecisionState } from "./types.js";
 
+/** Shared connection shape; each adapter resolves its own endpoint and defaults. */
+export interface DecisionConnectionConfig {
+  readonly baseUrl?: string;
+  readonly apiKey?: string;
+  readonly apiKeyEnv?: string;
+  readonly model?: string;
+  readonly timeoutMs?: number;
+}
+
+export interface DecisionConnectionSpec {
+  readonly baseUrl: string;
+  readonly apiKey: string;
+  readonly model: string;
+  readonly timeoutMs: number;
+}
+
 /** Provider-neutral question vocabulary. */
 export interface BinaryQuestion {
   readonly kind: "binary";
@@ -31,6 +47,7 @@ export interface CategoricalAnswer {
   readonly kind: "categorical";
   readonly choice: string;
   readonly probabilities: Readonly<Record<string, number>>;
+  /** Separate model confidence; never substitute the selected option's probability. */
   readonly confidence?: number;
 }
 
@@ -59,6 +76,14 @@ export interface JudgmentResult {
   readonly model?: string;
   /** Actual endpoint model version, when separately reported. */
   readonly resolvedModel?: string;
+  /** Reported usage only; adapters must not estimate missing token counts or cost. */
+  readonly usage?: JudgmentUsage;
+}
+
+export interface JudgmentUsage {
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly costUsd?: number;
 }
 
 export type JudgmentDomain = "tool-risk" | "routing" | "approval" | "output-safety";

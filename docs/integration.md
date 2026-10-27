@@ -1,12 +1,12 @@
 # 接入与验证
 
-本仓库提供宿主无关的概率判断接口与策略，Jev 是首个 provider 实现。示例配置把 Jev 用在两个宿主：pi 监听 `tool_call`，dsh 使用自身的 waterfall 扩展点。pi 目前只判断**调用工具前**的风险；dsh 另有路由、结果 judge、机器审批切面。两边的默认执行模式都是 `shadow`。其他能返回结构化概率判断的模型可通过各自 adapter 接入 dsh 核心，不要求兼容 Jev 的 API；更新后的 pi 扩展可通过 `PI_DECISION_PROVIDER` 选择 Jev 或 OpenAI Decisions，默认仍为 Jev。OpenAI 接入可从当前源码使用，npm 安装需等更新版本发布。
+本仓库提供宿主无关的概率判断接口与策略，Jev 是首个 provider 实现。示例配置把 Jev 用在两个宿主：pi 监听 `tool_call`，dsh 使用自身的 waterfall 扩展点。pi 目前只判断**调用工具前**的风险；dsh 另有路由、结果 judge、机器审批切面。两边的默认执行模式都是 `shadow`。其他能返回结构化概率判断的模型可通过各自 adapter 接入 dsh 核心，不要求兼容 Jev 的 API；更新后的 pi 扩展可通过 `PI_DECISION_PROVIDER` 选择 Jev、OpenAI Decisions 或 OpenRouter，默认仍为 Jev。OpenAI 接入需使用 `0.2.1` 或更新版本。
 
 示例命令要求 Node.js 22.19+ 和 pnpm。若本机没有独立的 `pnpm` 命令，可用 `npm exec --yes --package=pnpm@11.27.1 -- pnpm <命令>` 执行相同操作；版本与根目录 `packageManager` 一致。
 
 ## OpenAI Decisions API
 
-新包 `@techs/dsh-decision-openai` 调用原生 `POST /v1/decisions`；协议见 [OpenAI 官方指南](https://developers.openai.com/api/docs/guides/decisions)和 [API reference](https://developers.openai.com/api/reference/resources/decisions/methods/create)。接口目前为 public beta，支持 `gpt-6-luna`。
+新包 `@techs/dsh-decision-openai` 调用原生 `POST /v1/decisions`；协议见 [OpenAI 官方指南](https://developers.openai.com/api/docs/guides/decisions)和 [API reference](https://developers.openai.com/api/reference/resources/decisions/methods/create)。接口已正式可用（GA），支持 `gpt-6-luna`。
 
 | 核心题型    | Decisions 题型 | 映射                                                |
 | ----------- | -------------- | --------------------------------------------------- |
@@ -18,7 +18,7 @@
 
 当前中立契约提供 JSON/文本 state，以文本 input 发出；没有接入 Decisions 的原生图片 part。宿主继续使用既有出站脱敏、审计和 shadow 逻辑，直接使用 provider 的调用者自行准备出站 state。
 
-目前从源码运行，尚未发布新包；仓库根目录执行：
+从源码运行时，在仓库根目录执行：
 
 ```sh
 pnpm install
@@ -49,6 +49,25 @@ OpenAI bundle 选择 `provider: openai`、`timeoutMs: 8000`、`enforcement: shad
 dsh patch 替换整行 `config`，自定义策略要完整写在后加载的 profile patch；仓库既有示例 profile 仍使用 Jev。若已有 Jev 插件，不使用它时需禁用或移除，否则它仍会在加载时要求 Jev key。主模型凭证独立配置。
 
 协议与本地集成测试覆盖三类题型、拒答、非法答案、取消、超时、dsh 注册/卸载，以及 pi 的脱敏和失败策略。当前没有 OpenAI key 的现场调用结果，也没有 OpenAI 阈值校准报告；测试使用模拟 HTTP 响应。现有评估 CLI 仍专用于 Jev，不能直接当成 OpenAI 的校准工具。保持 shadow；该 provider 不提供机器审批自动放行资格。
+
+## OpenRouter Decisions API
+
+`@techs/dsh-decision-openrouter` 提供 `OpenRouterAdapter`，实现核心现有的 `JudgmentProvider` 契约。它调用 `POST https://openrouter.ai/api/alpha/decisions`，不使用 Jev 的 `/v1/systemone` 路径，也不把 OpenAI 的数组协议发送给 OpenRouter。
+
+```sh
+pnpm install
+pnpm run build
+export OPENROUTER_API_KEY=你的_OpenRouter_key
+export PI_DECISION_PROVIDER=openrouter
+export PI_DECISION_OPENROUTER_MODEL=baseten/elephant-1:free
+pi -e ./packages/pi-decision
+```
+
+dsh 可安装 `./packages/decision` 和 `./packages/decision-openrouter` 两个本地 bundle，后者选用 `provider: openrouter`、免费 Elephant 模型及 `shadow` 模式。Pi 支持 `PI_DECISION_OPENROUTER_BASE_URL` 和 `PI_DECISION_OPENROUTER_TIMEOUT_MS`，默认分别为 `https://openrouter.ai/api/alpha`、`8000`。直接调用 adapter 时必须显式配置 `model`；dsh 的 `questionKinds` 可限制具体模型支持的题型，默认三种题型。输入沿用核心 JSON/文本 state，未接入原生多模态。
+
+三种 adapter 使用相同的 binary/categorical/ordinal 问题、答案及可选用量字段。共享校验要求答案键精确匹配请求、完整概率分布和一致的期望 score；缺失 confidence 保留为缺失，不用选项概率替代。旧 `DecisionAdapter` 接口保留为兼容入口，新接入使用 `JudgmentProvider`。连接类型、用量类型和校验均从 `@techs/dsh-decision/kernel` 导出。
+
+已用两个免费模型完成 24 次现场请求，三类题型、中文和英文均通过，报告费用合计为 0。原始结果、复现命令和验证范围见[免费模型验证报告](eval-openrouter-free.md)，配置细节见[适配器说明](../packages/decision-openrouter/README.zh-CN.md)。该验证不构成工具风险阈值校准。
 
 ## 先区分两种凭证
 
@@ -253,7 +272,7 @@ live 模式默认使用 50 样本的 `fixtures-expanded-v1.json`，对带用户�
 
 `packages/decision` 提供不引入 Cordis/Schemastery 运行时依赖的 `./kernel` 子路径，`packages/decision-jev` 提供 `./provider` 和 `./spec` 子路径，pi 扩展只在类型位置导入 pi 的 `ExtensionAPI`。本地 `pi -e` 和 `pi install ./packages/pi-decision` 依赖 pnpm workspace 链接（pnpm 版本由根 `package.json` 的 `packageManager` 锁定为 11.27.1，11 的原生 `pnpm publish` 支持 npm Trusted Publishing）。
 
-发布是全自动的：把三个包 bump 到同一版本、提交后推 tag `vX.Y.Z`，`.github/workflows/release.yml` 会跑完整校验、校验 tag 与所有 `packages/*/package.json` 版本一致、创建 GitHub release，然后按拓扑序（decision → decision-jev → pi-decision）逐包 `pnpm publish --no-git-checks`，`workspace:` 版本自动替换为实际版本；逐包幂等跳过已发布版本，部分失败可直接重跑同一 workflow。npm 认证走 OIDC Trusted Publishers，不需要 `NPM_TOKEN`；前提是在 npmjs.com 后台为三个包各绑定一条 Trusted Publisher，内容须与 workflow 完全一致（大小写敏感）：仓库 `yourtion/dsh-decision`、workflow filename `release.yml`、不填 environment。Trusted publishing 未绑定或 CI 不可用时，回退手工发布：从各包目录按拓扑序单独 `pnpm publish --no-git-checks`（不要从根重跑 `pnpm -r publish`，会在已发布的包上报错中断）。发布后使用 `pi install npm:@techs/pi-decision` 或 `dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev`，不依赖本地仓库。发布前应分别用 npm tarball 在干净的 pi 和 dsh profile 中验证安装。
+正式发布时，将五个 `packages/*/package.json` 更新到同一未发布版本，提交后推送匹配的 `vX.Y.Z` 标签。`.github/workflows/release.yml` 会执行完整校验、校验标签版本、创建 GitHub release，并按依赖顺序发布核心、适配器和 Pi；已存在的版本会跳过。所有待发布包都需要有效的 npm Trusted Publisher，使用 `yourtion/dsh-decision`、`release.yml`、空 environment，并允许直接 `npm publish`。CI 通过 OIDC 认证，不需要 `NPM_TOKEN`。首次正式 OpenRouter 功能需要配套的新版核心；使用 `0.2.1` 或更新版本，不能覆盖已有的 `0.2.0`。
 
 接入其他概率判断模型时，实现 `@techs/dsh-decision` 的 `JudgmentProvider`，把该模型的请求与响应映射为具名的 `JudgmentRequest` / `JudgmentResult`，声明支持的 binary、categorical、ordinal 问题类型，并注册到 `ctx.decision`：
 

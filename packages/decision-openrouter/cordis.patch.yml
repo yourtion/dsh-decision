@@ -1,0 +1,15 @@
+# Applied after the core bundle; config patches replace the whole config.
+- id: decision
+  config:
+    provider: openrouter
+    timeoutMs: 8000
+    enforcement: shadow
+    permission: native
+- insert:
+    - id: decision-openrouter
+      name: "@techs/dsh-decision-openrouter"
+      config:
+        apiKeyEnv: OPENROUTER_API_KEY
+        baseUrl: https://openrouter.ai/api/alpha
+        model: baseten/elephant-1:free
+        timeoutMs: 8000
