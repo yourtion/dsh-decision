@@ -10,6 +10,22 @@ const spec: JevSpec = {
 };
 
 describe("Jev JudgmentProvider", () => {
+  it("preserves reported usage in the shared result", async () => {
+    const provider = createJevProvider(spec, async () =>
+      Response.json({
+        answers: { risk: { type: "noul", noul: 0.1 } },
+        usage: { input_tokens: 123, output_tokens: 1, cost: 0.0001 },
+      }),
+    );
+    expect(
+      (
+        await provider.evaluate({
+          state: "x",
+          questions: { risk: { kind: "binary", instructions: "Risk?" } },
+        })
+      ).usage,
+    ).toEqual({ inputTokens: 123, outputTokens: 1, costUsd: 0.0001 });
+  });
   it("maps binary, categorical and ordinal questions in one request", async () => {
     let sent: unknown;
     const fetchImpl = (async (_url: string, init: RequestInit) => {

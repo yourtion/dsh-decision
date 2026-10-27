@@ -8,7 +8,7 @@ import type { ResolvedConfig } from "./config.js";
 import type { JudgmentProvider, JudgmentRequest, JudgmentResult } from "./judgment.js";
 import { ProviderValidationError } from "./types.js";
 import { legacyAdapterProvider } from "./legacy-provider.js";
-import { validateJudgmentResult } from "./judgment-validation.js";
+import { validateJudgmentRequest, validateJudgmentResult } from "./judgment-validation.js";
 
 /**
  * Holds registered providers and v1 adapters. `DecisionLayer` exposes its
@@ -59,6 +59,7 @@ export class DecisionRuntime {
   }
 
   async evaluate(request: JudgmentRequest, signal?: AbortSignal): Promise<JudgmentResult> {
+    validateJudgmentRequest(request);
     const provider = this.provider();
     const capabilities = provider.capabilities();
     for (const question of Object.values(request.questions)) {

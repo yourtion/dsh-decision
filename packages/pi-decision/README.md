@@ -2,7 +2,7 @@
 
 English | [简体中文](https://github.com/yourtion/dsh-decision/blob/main/packages/pi-decision/README.zh-CN.md)
 
-A Pi `tool_call` guardrail extension with Jev and OpenAI Decisions judgment providers; Jev remains the default. Before each tool call, it assesses six risk dimensions: `destructive`, `secretExposure`, `privacyExposure`, `externalSideEffect`, `privilegeEscalation`, and `scopeViolation`. You can disable or customize built-in dimensions and add your own. The risk policy comes from the provider-neutral core; select `PI_DECISION_PROVIDER=jev|openai`. The agent's main model still generates responses, and Pi's own permission rules continue to apply.
+A Pi `tool_call` guardrail extension with Jev, OpenAI Decisions and OpenRouter judgment providers; Jev remains the default. Before each tool call, it assesses six risk dimensions: `destructive`, `secretExposure`, `privacyExposure`, `externalSideEffect`, `privilegeEscalation`, and `scopeViolation`. You can disable or customize built-in dimensions and add your own. The risk policy comes from the provider-neutral core; select `PI_DECISION_PROVIDER=jev|openai|openrouter`. The agent's main model still generates responses, and Pi's own permission rules continue to apply.
 
 ```sh
 export AI_GATEWAY_API_KEY=your_gateway_key
@@ -42,3 +42,7 @@ OpenAI uses the native [Decisions API](https://developers.openai.com/api/docs/gu
 - [Integration and verification](https://github.com/yourtion/dsh-decision/blob/main/docs/integration.md#pi-接入) (Chinese)
 - [Threshold evaluation](https://github.com/yourtion/dsh-decision/blob/main/docs/eval.md) (Chinese)
 - [Repository README](https://github.com/yourtion/dsh-decision#readme)
+
+## OpenRouter Decisions
+
+Set `PI_DECISION_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and an explicit `PI_DECISION_OPENROUTER_MODEL` such as `baseten/elephant-1:free`. Optional `PI_DECISION_OPENROUTER_BASE_URL` defaults to `https://openrouter.ai/api/alpha`; `PI_DECISION_OPENROUTER_TIMEOUT_MS` defaults to `8000`. No Jev or OpenAI key is read in this mode. Build from this checkout before loading the extension; registry installation requires a release. See the [adapter guide](../decision-openrouter/README.md) and [free-model verification](../../docs/eval-openrouter-free.md).

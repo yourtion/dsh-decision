@@ -13,7 +13,7 @@
 
 dsh 核心接受能对具名问题返回结构化概率的模型。接入时实现 `JudgmentProvider`，声明支持的问题类型（二元、分类、有序评分），注册到 `ctx.decision`，并通过 `decision.config.provider` 选择。每种模型或 API 协议需要将请求与结果映射到这个接口的 adapter，模型不必兼容 Jev 的 TypeSafe System One wire 格式。
 
-本仓库提供 Jev 和 [OpenAI Decisions API](packages/decision-openai/README.zh-CN.md) adapter。更新后的 pi 扩展可通过 `PI_DECISION_PROVIDER=jev|openai` 选择，默认仍为 Jev。OpenAI 接入可从当前源码使用，npm 安装需等新版本发布。Jev 上校准的阈值不能直接套用到其他模型，应先重跑评估并从 `shadow` 开始观察。pi 目前只接入工具调用前的 guardrail。
+本仓库提供 Jev、[OpenAI Decisions API](packages/decision-openai/README.zh-CN.md) 和 [OpenRouter](packages/decision-openrouter/README.zh-CN.md) adapter。更新后的 pi 扩展可通过 `PI_DECISION_PROVIDER=jev|openai|openrouter` 选择，默认仍为 Jev。OpenAI 和 OpenRouter 接入可从当前源码使用，npm 安装需等新版本发布。Jev 上校准的阈值不能直接套用到其他模型，应先重跑评估并从 `shadow` 开始观察。pi 目前只接入工具调用前的 guardrail。
 
 ## 安装发布版
 
@@ -75,16 +75,17 @@ profile 默认 `enforcement: shadow`，dsh 原生权限规则继续生效。dsh 
 
 ## 仓库结构
 
-| 路径                        | 用途                                    |
-| --------------------------- | --------------------------------------- |
-| `packages/decision/`        | 宿主无关的风险内核与 dsh 四个切面       |
-| `packages/decision-jev/`    | Jev 的 TypeSafe System One wire adapter |
-| `packages/decision-openai/` | OpenAI 原生 Decisions API adapter       |
-| `packages/pi-decision/`     | pi 的 `tool_call` guardrail 扩展        |
-| `profile/`                  | dsh 的示例 profile                      |
+| 路径                            | 用途                                    |
+| ------------------------------- | --------------------------------------- |
+| `packages/decision/`            | 宿主无关的风险内核与 dsh 四个切面       |
+| `packages/decision-jev/`        | Jev 的 TypeSafe System One wire adapter |
+| `packages/decision-openai/`     | OpenAI 原生 Decisions API adapter       |
+| `packages/decision-openrouter/` | OpenRouter Decisions API adapter        |
+| `packages/pi-decision/`         | pi 的 `tool_call` guardrail 扩展        |
+| `profile/`                      | dsh 的示例 profile                      |
 
 ```sh
-pnpm run typecheck # 构建并检查四个包
+pnpm run typecheck # 构建并检查所有包
 pnpm run test      # 单元测试
 pnpm run lint      # oxlint
 pnpm run fmt       # oxfmt --check

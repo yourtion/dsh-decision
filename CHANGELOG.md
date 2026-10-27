@@ -8,6 +8,10 @@ follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Add `OpenRouterAdapter` and the `@techs/dsh-decision-openrouter` bundle, selected with `provider: openrouter` in dsh or `PI_DECISION_PROVIDER=openrouter` in Pi.
+- Share connection and usage types across Decisions providers and enforce complete probability distributions and matching ordinal expectations in the neutral validator. Legacy adapter entry points remain available.
+- Add reproducible zero-price-only live verification; archive 24 successful bilingual three-type requests on Mammoth and Elephant with reported cost $0.
+
 - `@techs/dsh-decision-openai`: a native OpenAI Decisions API provider for
   predicate, choice and score judgments, with per-question refusal handling,
   probability validation, cancellation, timeouts, separate model identities,

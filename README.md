@@ -11,9 +11,9 @@ An extensible decision layer for [DeepSeek Harness (dsh)](https://github.com/dee
 
 ## Judgment providers
 
-The dsh core accepts models that can answer named, typed questions with structured probabilities. A provider implements `JudgmentProvider`, declares which question types it supports (binary, categorical, ordinal), registers with `ctx.decision`, and is selected by `decision.config.provider`. Each model or API protocol needs an adapter that maps its requests and answers to this contract. A model does not need to speak Jev's TypeSafe System One wire format.
+The dsh core accepts models that can answer named, typed questions with structured probabilities. A provider implements `JudgmentProvider`, declares which question types it supports (binary, categorical, ordinal), registers with `ctx.decision`, and is selected by `decision.config.provider`. Each API protocol needs an adapter that maps its requests and answers to this contract. A model does not need to speak Jev's TypeSafe System One wire format.
 
-This repository ships Jev and [OpenAI Decisions API](packages/decision-openai/README.md) adapters. The updated Pi extension selects either through `PI_DECISION_PROVIDER=jev|openai`, with Jev as the default. The OpenAI integration is available from this checkout; registry installation requires a release first. Thresholds calibrated on Jev do not transfer automatically to another model. Evaluate the new model and start in `shadow` before enabling enforcement. Pi currently implements the pre-tool-call guardrail only.
+This repository ships Jev, [OpenAI Decisions API](packages/decision-openai/README.md), and [OpenRouter](packages/decision-openrouter/README.md) adapters. The updated Pi extension selects a provider through `PI_DECISION_PROVIDER=jev|openai|openrouter`, with Jev as the default. The OpenAI and OpenRouter integrations are available from this checkout; registry installation requires a release first. Thresholds calibrated on Jev do not transfer automatically to another model. Evaluate the new model and start in `shadow` before enabling enforcement. Pi currently implements the pre-tool-call guardrail only.
 
 ## Install published packages
 
@@ -75,16 +75,17 @@ The profile defaults to `enforcement: shadow`, so dsh's native permission rules 
 
 ## Repository layout
 
-| Path                        | Purpose                                                  |
-| --------------------------- | -------------------------------------------------------- |
-| `packages/decision/`        | Host-neutral risk kernel and four dsh integration points |
-| `packages/decision-jev/`    | Jev TypeSafe System One wire adapter                     |
-| `packages/decision-openai/` | OpenAI native Decisions API adapter                      |
-| `packages/pi-decision/`     | Pi `tool_call` guardrail extension                       |
-| `profile/`                  | Example dsh profile                                      |
+| Path                            | Purpose                                                  |
+| ------------------------------- | -------------------------------------------------------- |
+| `packages/decision/`            | Host-neutral risk kernel and four dsh integration points |
+| `packages/decision-jev/`        | Jev TypeSafe System One wire adapter                     |
+| `packages/decision-openai/`     | OpenAI native Decisions API adapter                      |
+| `packages/decision-openrouter/` | OpenRouter Decisions API adapter                         |
+| `packages/pi-decision/`         | Pi `tool_call` guardrail extension                       |
+| `profile/`                      | Example dsh profile                                      |
 
 ```sh
-pnpm run typecheck # Build and check all four packages
+pnpm run typecheck # Build and check all packages
 pnpm run test      # Unit tests
 pnpm run lint      # oxlint
 pnpm run fmt       # oxfmt --check

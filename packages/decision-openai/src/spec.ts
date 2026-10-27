@@ -1,19 +1,8 @@
-/** Host-neutral connection settings for POST /v1/decisions. */
-export interface OpenAIConfig {
-  /** Versioned API root; the provider appends /decisions. */
-  readonly baseUrl?: string;
-  readonly apiKey?: string;
-  readonly apiKeyEnv?: string;
-  readonly model?: string;
-  readonly timeoutMs?: number;
-}
+import type { DecisionConnectionConfig, DecisionConnectionSpec } from "@techs/dsh-decision/kernel";
 
-export interface OpenAISpec {
-  readonly baseUrl: string;
-  readonly apiKey: string;
-  readonly model: string;
-  readonly timeoutMs: number;
-}
+/** Versioned API root; the provider appends /decisions. */
+export type OpenAIConfig = DecisionConnectionConfig;
+export type OpenAISpec = DecisionConnectionSpec;
 
 export function resolveOpenAIConfig(
   config: OpenAIConfig,

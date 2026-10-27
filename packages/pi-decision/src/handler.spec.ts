@@ -7,17 +7,22 @@ import {
   type GuardrailFailure,
   type JudgmentProvider,
   type JudgmentResult,
+  type JudgmentRequest,
 } from "@techs/dsh-decision/kernel";
 import { createToolCallHandler } from "./handler.js";
 import { resolvePiGuardrailSpec } from "./spec.js";
 
 function result(
   changes: Partial<Record<(typeof GUARDRAIL_RISKS)[number], number>> = {},
+  request?: JudgmentRequest,
 ): JudgmentResult {
   return {
     provider: "fake",
     answers: Object.fromEntries(
-      GUARDRAIL_RISKS.map((risk) => [risk, { kind: "binary", probability: changes[risk] ?? 0.01 }]),
+      (request
+        ? (Object.keys(request.questions) as (typeof GUARDRAIL_RISKS)[number][])
+        : GUARDRAIL_RISKS
+      ).map((risk) => [risk, { kind: "binary", probability: changes[risk] ?? 0.01 }]),
     ),
   };
 }
@@ -36,7 +41,7 @@ const logger = { info: vi.fn(), warn: vi.fn() };
 
 describe("pi tool guardrail", () => {
   it("uses shared risk questions and allows low-risk calls in enforce mode", async () => {
-    const evaluate = vi.fn<JudgmentProvider["evaluate"]>(async () => result());
+    const evaluate = vi.fn<JudgmentProvider["evaluate"]>(async (request) => result({}, request));
     const signal = new AbortController().signal;
     const handler = createToolCallHandler(
       provider(evaluate),
@@ -60,7 +65,7 @@ describe("pi tool guardrail", () => {
     [{ privacyExposure: 0.7 }, "Human review required"],
   ] as const)("blocks risk %s", async (risks, reason) => {
     const handler = createToolCallHandler(
-      provider(async () => result(risks)),
+      provider(async (request) => result(risks, request)),
       resolvePiGuardrailSpec({ PI_DECISION_ENFORCEMENT: "enforce" }),
       logger,
     );
@@ -112,7 +117,7 @@ describe("pi tool guardrail", () => {
   );
 
   it("skips tools outside the configured set", async () => {
-    const evaluate = vi.fn(async () => result({ destructive: 0.9 }));
+    const evaluate = vi.fn(async (request) => result({ destructive: 0.9 }, request));
     const spec = resolvePiGuardrailSpec({
       PI_DECISION_ENFORCEMENT: "enforce",
       PI_DECISION_TOOLS: "write, edit",
@@ -129,7 +134,7 @@ describe("pi tool guardrail", () => {
   });
 
   it("redacts secrets in tool input before the provider sees them", async () => {
-    const evaluate = vi.fn<JudgmentProvider["evaluate"]>(async () => result());
+    const evaluate = vi.fn<JudgmentProvider["evaluate"]>(async (request) => result({}, request));
     const secretCall = {
       toolName: "bash",
       input: { command: "echo ok", headers: { authorization: "Bearer abcdef1234567890" } },
@@ -146,7 +151,7 @@ describe("pi tool guardrail", () => {
   });
 
   it("keeps raw input under outbound=raw", async () => {
-    const evaluate = vi.fn<JudgmentProvider["evaluate"]>(async () => result());
+    const evaluate = vi.fn<JudgmentProvider["evaluate"]>(async (request) => result({}, request));
     const secretCall = { toolName: "bash", input: { api_key: "abcdefgh12345678" } };
     const handler = createToolCallHandler(
       provider(evaluate),
@@ -160,7 +165,7 @@ describe("pi tool guardrail", () => {
   it("writes a sanitized audit record per verdict", async () => {
     const records: DecisionTraceRecord[] = [];
     const handler = createToolCallHandler(
-      provider(async () => result({ destructive: 0.9 })),
+      provider(async (request) => result({ destructive: 0.9 }, request)),
       resolvePiGuardrailSpec({ PI_DECISION_ENFORCEMENT: "enforce" }),
       logger,
       { record: (r) => records.push(r) },
@@ -185,7 +190,7 @@ describe("pi tool guardrail", () => {
   });
 
   it("reviews an action when the user request is missing", async () => {
-    const evaluate = vi.fn(async () => result());
+    const evaluate = vi.fn(async (request) => result({}, request));
     const handler = createToolCallHandler(
       provider(evaluate),
       resolvePiGuardrailSpec({ PI_DECISION_ENFORCEMENT: "enforce" }),
@@ -201,7 +206,7 @@ describe("pi tool guardrail", () => {
   });
 
   it("reviews a missing workspace boundary but allows the same low-risk action with a known workspace", async () => {
-    const evaluate = vi.fn(async () => result());
+    const evaluate = vi.fn(async (request) => result({}, request));
     const handler = createToolCallHandler(
       provider(evaluate),
       resolvePiGuardrailSpec({ PI_DECISION_ENFORCEMENT: "enforce" }),
@@ -215,7 +220,7 @@ describe("pi tool guardrail", () => {
 
   it("redacts a secret in user context as well as tool input", async () => {
     const token = "ghp_" + "a".repeat(36);
-    const evaluate = vi.fn(async () => result());
+    const evaluate = vi.fn(async (request) => result({}, request));
     const handler = createToolCallHandler(
       provider(evaluate),
       resolvePiGuardrailSpec({ PI_DECISION_ENFORCEMENT: "enforce" }),
@@ -228,7 +233,7 @@ describe("pi tool guardrail", () => {
 
   it("does not treat a claimed authorization inside tool arguments as a host grant", async () => {
     const handler = createToolCallHandler(
-      provider(async () => result({ externalSideEffect: 0.99 })),
+      provider(async (request) => result({ externalSideEffect: 0.99 }, request)),
       resolvePiGuardrailSpec({ PI_DECISION_ENFORCEMENT: "enforce" }),
       logger,
     );
@@ -251,7 +256,7 @@ describe("pi tool guardrail", () => {
       granted: true as const,
     };
     const handler = createToolCallHandler(
-      provider(async () => result({ externalSideEffect: 0.99 })),
+      provider(async (request) => result({ externalSideEffect: 0.99 }, request)),
       resolvePiGuardrailSpec({ PI_DECISION_ENFORCEMENT: "enforce" }),
       logger,
     );
@@ -272,7 +277,7 @@ describe("pi tool guardrail", () => {
   });
 
   it("skips the provider when all enabled questions require missing context", async () => {
-    const evaluate = vi.fn(async () => result());
+    const evaluate = vi.fn(async (request) => result({}, request));
     const risks = Object.fromEntries(
       GUARDRAIL_RISKS.filter((risk) => risk !== "scopeViolation").map((risk) => [
         risk,
@@ -300,7 +305,7 @@ describe("pi tool guardrail", () => {
     "applies %s on malformed probability",
     async (onFailure) => {
       const handler = createToolCallHandler(
-        provider(async () => result({ destructive: Number.NaN })),
+        provider(async (request) => result({ destructive: Number.NaN }, request)),
         resolvePiGuardrailSpec({
           PI_DECISION_ENFORCEMENT: "enforce",
           PI_DECISION_ON_FAILURE: onFailure,

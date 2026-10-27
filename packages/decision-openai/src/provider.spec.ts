@@ -68,6 +68,19 @@ const providerWith = (answers: unknown, model: unknown = "gpt-6-luna-resolved") 
   );
 
 describe("OpenAI Decisions provider", () => {
+  it("maps reported usage to the shared contract", async () => {
+    const provider = createOpenAIProvider(spec, async () =>
+      Response.json({
+        model: "gpt-6-luna",
+        answers: [wireAnswers()[0]],
+        usage: { input_tokens: 123, output_tokens: 1, total_tokens: 124 },
+      }),
+    );
+    expect((await provider.evaluate(binaryRequest)).usage).toEqual({
+      inputTokens: 123,
+      outputTokens: 1,
+    });
+  });
   it("posts all three native question types and maps answers by name", async () => {
     const fetchImpl = vi.fn(async () => reply(wireAnswers().toReversed()));
     const provider = createOpenAIProvider(spec, fetchImpl);

@@ -35,10 +35,14 @@ export type {
   JudgmentQuestion,
   JudgmentRequest,
   JudgmentResult,
+  JudgmentUsage,
+  JudgmentCapabilities,
+  DecisionConnectionConfig,
+  DecisionConnectionSpec,
 } from "./judgment.js";
 export { DecisionError, ProviderValidationError } from "./types.js";
 export { validateAnswer } from "./validation.js";
-export { validateJudgmentResult } from "./judgment-validation.js";
+export { validateJudgmentRequest, validateJudgmentResult } from "./judgment-validation.js";
 export type {
   ChoiceAnswer,
   DecisionAdapter,

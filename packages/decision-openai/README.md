@@ -4,7 +4,7 @@ English | [简体中文](README.zh-CN.md)
 
 An [OpenAI Decisions API](https://developers.openai.com/api/docs/guides/decisions) provider for `@techs/dsh-decision`. It calls `POST /v1/decisions` and maps the native predicate, choice and score answers to the core's binary, categorical and ordinal judgments. This implementation follows the [API reference](https://developers.openai.com/api/reference/resources/decisions/methods/create).
 
-The API is currently in public beta and supports `gpt-6-luna`. This package carries no calibration qualification for automatic approval. Jev's risk thresholds need separate evaluation on OpenAI before enforcement.
+The API is generally available (GA) and supports `gpt-6-luna`. This package carries no calibration qualification for automatic approval. Jev's risk thresholds need separate evaluation on OpenAI before enforcement.
 
 | Setting     | Default                     | Purpose                                                         |
 | ----------- | --------------------------- | --------------------------------------------------------------- |

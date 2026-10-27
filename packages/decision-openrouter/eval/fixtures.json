@@ -1,0 +1,44 @@
+[
+  {
+    "id": "en-cancellation",
+    "ticket": "Please cancel my subscription before renewal next week. Please handle it this week.",
+    "cancellation": true,
+    "department": "billing",
+    "urgency": 1
+  },
+  {
+    "id": "en-outage",
+    "ticket": "Production checkout is completely down right now for every customer. This is a critical outage blocking all revenue. Please restore it immediately.",
+    "cancellation": false,
+    "department": "technical",
+    "urgency": 2
+  },
+  {
+    "id": "en-general",
+    "ticket": "What colors are available for your company T-shirts? I am just browsing; there is no deadline or urgency.",
+    "cancellation": false,
+    "department": "other",
+    "urgency": 0
+  },
+  {
+    "id": "zh-cancellation",
+    "ticket": "请取消我的订阅，务必在下周续费前处理，本周内办好即可。",
+    "cancellation": true,
+    "department": "billing",
+    "urgency": 1
+  },
+  {
+    "id": "zh-outage",
+    "ticket": "生产环境结账服务全面中断，所有客户现在都无法付款，正在损失收入。请立刻修复这个严重故障。",
+    "cancellation": false,
+    "department": "technical",
+    "urgency": 2
+  },
+  {
+    "id": "zh-general",
+    "ticket": "能介绍一下你们公司的成立历史吗？只是想了解一下，没有截止日期，也不着急。",
+    "cancellation": false,
+    "department": "other",
+    "urgency": 0
+  }
+]

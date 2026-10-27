@@ -2,6 +2,7 @@
 import {
   DecisionError,
   ProviderValidationError,
+  validateJudgmentRequest,
   validateJudgmentResult,
   type JudgmentAnswer,
   type JudgmentProvider,
@@ -93,14 +94,8 @@ function distribution(raw: unknown, question: JudgmentQuestion): Record<string, 
     }
     entries.set(key, probability(item.probability));
   }
-  const sum = [...entries.values()].reduce((total, p) => total + p, 0);
-  if (entries.size !== allowed.length || Math.abs(sum - 1) > 0.001) {
-    throw new ProviderValidationError(
-      "openai: probability distribution must cover every option and sum to 1 (tolerance 0.001).",
-    );
-  }
   // Preserve the API probabilities rather than manufacturing a normalized distribution.
-  return Object.fromEntries(allowed.map((key) => [key, entries.get(key)!]));
+  return Object.fromEntries(entries);
 }
 
 function fromWireAnswer(answer: JsonObject, question: JudgmentQuestion): JudgmentAnswer {
@@ -126,15 +121,6 @@ function fromWireAnswer(answer: JsonObject, question: JudgmentQuestion): Judgmen
     const max = question.levels.length - 1;
     if (typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > max) {
       throw new ProviderValidationError("openai: invalid expected score.");
-    }
-    const expected = Object.entries(probabilities).reduce(
-      (total, [index, p]) => total + Number(index) * p,
-      0,
-    );
-    if (Math.abs(score - expected) > 0.001 * Math.max(1, max)) {
-      throw new ProviderValidationError(
-        "openai: score does not match its probability-weighted level indices.",
-      );
     }
     return { kind: "ordinal", score, confidence: probability(answer.confidence), probabilities };
   }
@@ -164,12 +150,21 @@ function fromWireResponse(
   if (mapped.size !== Object.keys(request.questions).length) {
     throw new ProviderValidationError("openai: missing judgment answers.");
   }
-  const result = {
+  const usage = payload.usage === undefined ? undefined : object(payload.usage);
+  const result: JudgmentResult = {
     provider: "openai",
     model: spec.model,
     requestedModel: spec.model,
     resolvedModel: payload.model,
     answers: Object.fromEntries(mapped),
+    ...(usage === undefined
+      ? {}
+      : {
+          usage: {
+            inputTokens: usage.input_tokens as number,
+            outputTokens: usage.output_tokens as number,
+          },
+        }),
   };
   validateJudgmentResult(request, result);
   return result;
@@ -185,6 +180,7 @@ export function createOpenAIProvider(
     capabilities: () => ({ binary: true, categorical: true, ordinal: true, calibration: [] }),
     async evaluate(request, signal) {
       signal?.throwIfAborted();
+      validateJudgmentRequest(request);
       const questions = Object.entries(request.questions).map(([name, question]) =>
         toWireQuestion(name, question),
       );

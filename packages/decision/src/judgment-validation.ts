@@ -22,6 +22,64 @@ function distribution(value: unknown, allowed: readonly string[], path: string):
     }
     probability(item, `${path}.${key}`);
   }
+  const values = Object.values(value) as number[];
+  if (
+    values.length !== allowed.length ||
+    Math.abs(values.reduce((sum, p) => sum + p, 0) - 1) > 0.001
+  ) {
+    throw new ProviderValidationError(
+      `${path} must cover every option and sum to 1 (tolerance 0.001).`,
+    );
+  }
+}
+
+/** Validate the shared contract before a provider performs network I/O. */
+export function validateJudgmentRequest(request: JudgmentRequest): void {
+  for (const [key, question] of Object.entries(request.questions)) {
+    if (typeof question.instructions !== "string" || !question.instructions.trim()) {
+      throw new ProviderValidationError(`Question ${JSON.stringify(key)} needs instructions.`);
+    }
+    switch (question.kind) {
+      case "binary":
+        if (
+          question.criteria !== undefined &&
+          (question.criteria === null ||
+            typeof question.criteria !== "object" ||
+            Object.values(question.criteria).some((value) => typeof value !== "string"))
+        ) {
+          throw new ProviderValidationError(
+            `Question ${JSON.stringify(key)} has invalid binary criteria.`,
+          );
+        }
+        break;
+      case "categorical":
+        if (
+          question.options === null ||
+          typeof question.options !== "object" ||
+          Array.isArray(question.options) ||
+          Object.keys(question.options).length === 0 ||
+          Object.values(question.options).some(
+            (value) => value !== null && typeof value !== "string",
+          )
+        ) {
+          throw new ProviderValidationError(`Question ${JSON.stringify(key)} needs named options.`);
+        }
+        break;
+      case "ordinal":
+        if (
+          !Array.isArray(question.levels) ||
+          question.levels.length === 0 ||
+          question.levels.some((value) => typeof value !== "string" || !value.trim())
+        ) {
+          throw new ProviderValidationError(
+            `Question ${JSON.stringify(key)} needs ordered levels.`,
+          );
+        }
+        break;
+      default:
+        throw new ProviderValidationError(`Question ${JSON.stringify(key)} has an unknown kind.`);
+    }
+  }
 }
 
 export function validateJudgmentAnswer(
@@ -29,7 +87,7 @@ export function validateJudgmentAnswer(
   question: JudgmentQuestion,
   answer: JudgmentAnswer | undefined,
 ): void {
-  if (answer === undefined || answer.kind !== question.kind) {
+  if (answer === undefined || answer === null || answer.kind !== question.kind) {
     throw new ProviderValidationError(
       `Answer ${JSON.stringify(key)} is missing or has the wrong kind.`,
     );
@@ -61,6 +119,15 @@ export function validateJudgmentAnswer(
         question.levels.map((_, index) => String(index)),
         `${key}.probabilities`,
       );
+      const expected = Object.entries(answer.probabilities).reduce(
+        (total, [index, p]) => total + Number(index) * p,
+        0,
+      );
+      if (Math.abs(answer.score - expected) > 0.001 * Math.max(1, question.levels.length - 1)) {
+        throw new ProviderValidationError(
+          `${key}.score must match probability-weighted level indices.`,
+        );
+      }
       if (answer.confidence !== undefined) probability(answer.confidence, `${key}.confidence`);
   }
 }
@@ -75,7 +142,32 @@ export function validateJudgmentResult(request: JudgmentRequest, result: Judgmen
   ) {
     throw new ProviderValidationError("Provider returned no answers.");
   }
+  for (const key of Object.keys(result.answers)) {
+    if (!Object.hasOwn(request.questions, key)) {
+      throw new ProviderValidationError(
+        `Provider returned undeclared answer ${JSON.stringify(key)}.`,
+      );
+    }
+  }
   for (const [key, question] of Object.entries(request.questions)) {
-    validateJudgmentAnswer(key, question, result.answers[key]);
+    validateJudgmentAnswer(
+      key,
+      question,
+      Object.hasOwn(result.answers, key) ? result.answers[key] : undefined,
+    );
+  }
+  if (result.usage !== undefined) {
+    const usage = result.usage;
+    if (
+      !usage ||
+      !Number.isSafeInteger(usage.inputTokens) ||
+      usage.inputTokens < 0 ||
+      !Number.isSafeInteger(usage.outputTokens) ||
+      usage.outputTokens < 0 ||
+      (usage.costUsd !== undefined &&
+        (typeof usage.costUsd !== "number" || !Number.isFinite(usage.costUsd) || usage.costUsd < 0))
+    ) {
+      throw new ProviderValidationError("Provider returned invalid usage.");
+    }
   }
 }
