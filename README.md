@@ -91,7 +91,7 @@ pnpm run lint      # oxlint
 pnpm run fmt       # oxfmt --check
 ```
 
-The [design](docs/design.md), [v2 plan](docs/v2-plan.md), and [new decision tasks roadmap](docs/decision-tasks-roadmap.md) are currently in Chinese. The new roadmap documents integration research, task inputs, and evaluation gates for future development. `enforce` is experimental and emits a startup warning. Outbound state is locally redacted for recognizable secret patterns by default (`privacy.outbound: raw` sends it unchanged); unrecognized private data can still leave the host. Sanitized audit records go to `$XDG_STATE_HOME/dsh-decision/` (`pi-audit.jsonl` or `dsh-audit.jsonl`) and can be disabled with `audit.enabled: false` or `PI_DECISION_AUDIT=off`. See the [MIT license](LICENSE) and [changelog](CHANGELOG.md).
+The [design](docs/design.md), [v2 plan](docs/v2-plan.md), and [new decision tasks roadmap](docs/decision-tasks-roadmap.md) are currently in Chinese. The new roadmap documents integration research, task inputs, and evaluation gates for future development. `enforce` is experimental and emits a startup warning. Outbound state is locally redacted for recognizable secret patterns by default (`privacy.outbound: raw` sends it unchanged); unrecognized private data can still leave the host. Sanitized audit records go to `$XDG_STATE_HOME/dsh-decision/` (`pi-audit.jsonl` or `dsh-audit.jsonl`) and can be disabled with `audit.enabled: false` or `PI_DECISION_AUDIT=off`. For the initial local npm release and subsequent OIDC releases, see the [release guide](docs/releasing.md). See the [MIT license](LICENSE) and [changelog](CHANGELOG.md).
 
 ## Threshold calibration
 

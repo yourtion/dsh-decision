@@ -91,7 +91,7 @@ pnpm run lint      # oxlint
 pnpm run fmt       # oxfmt --check
 ```
 
-架构与策略见 [设计文档](docs/design.md) 和 [v2 计划](docs/v2-plan.md)。新增方向的接入调研、任务输入与评估关卡见 [新决策任务迭代计划](docs/decision-tasks-roadmap.md)。风险阈值是实验值，`enforce` 模式当前标记为实验特性（启动时会打警告）；发往外部 Jev 服务的状态默认经本地脱敏（掩码密钥形态的内容，`privacy.outbound: raw` 可回退原样），未识别的私密内容仍可能发出。每次判定的 sanitized 审计记录默认写入 `$XDG_STATE_HOME/dsh-decision/`（pi 为 `pi-audit.jsonl`，dsh 为 `dsh-audit.jsonl`），可用 `audit.enabled: false` 或 `PI_DECISION_AUDIT=off` 关闭。MIT 协议见 [LICENSE](LICENSE)，变更见 [CHANGELOG](CHANGELOG.md)。
+架构与策略见 [设计文档](docs/design.md) 和 [v2 计划](docs/v2-plan.md)。新增方向的接入调研、任务输入与评估关卡见 [新决策任务迭代计划](docs/decision-tasks-roadmap.md)。风险阈值是实验值，`enforce` 模式当前标记为实验特性（启动时会打警告）；发往外部 Jev 服务的状态默认经本地脱敏（掩码密钥形态的内容，`privacy.outbound: raw` 可回退原样），未识别的私密内容仍可能发出。每次判定的 sanitized 审计记录默认写入 `$XDG_STATE_HOME/dsh-decision/`（pi 为 `pi-audit.jsonl`，dsh 为 `dsh-audit.jsonl`），可用 `audit.enabled: false` 或 `PI_DECISION_AUDIT=off` 关闭。首次本地发布与后续 OIDC 自动发布见[发布指南](docs/releasing.md)。MIT 协议见 [LICENSE](LICENSE)，变更见 [CHANGELOG](CHANGELOG.md)。
 
 ## 阈值与校准现状
 

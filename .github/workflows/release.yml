@@ -52,6 +52,7 @@ jobs:
       # NPM_TOKEN);公开仓库 + OIDC 发布时 provenance 自动生成。
       # npmjs.com 后台须为五个包各配一条 Trusted Publisher,且与本文件完全一致
       # (大小写敏感):yourtion/dsh-decision + workflow filename「release.yml」+ 无 environment。
+      # 首次新包先本地发布并配置 Allow npm publish;详见 docs/releasing.md。
       - name: Publish packages to npm
         run: |
           set -eu

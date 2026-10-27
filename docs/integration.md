@@ -272,7 +272,7 @@ live 模式默认使用 50 样本的 `fixtures-expanded-v1.json`，对带用户�
 
 `packages/decision` 提供不引入 Cordis/Schemastery 运行时依赖的 `./kernel` 子路径，`packages/decision-jev` 提供 `./provider` 和 `./spec` 子路径，pi 扩展只在类型位置导入 pi 的 `ExtensionAPI`。本地 `pi -e` 和 `pi install ./packages/pi-decision` 依赖 pnpm workspace 链接（pnpm 版本由根 `package.json` 的 `packageManager` 锁定为 11.27.1，11 的原生 `pnpm publish` 支持 npm Trusted Publishing）。
 
-发布是全自动的：把所有包 bump 到同一版本、提交后推 tag `vX.Y.Z`，`.github/workflows/release.yml` 会跑完整校验、校验 tag 与所有 `packages/*/package.json` 版本一致、创建 GitHub release，然后按拓扑序（decision → decision-jev/decision-openai/decision-openrouter → pi-decision）逐包 `pnpm publish --no-git-checks`，`workspace:` 版本自动替换为实际版本；逐包幂等跳过已发布版本，部分失败可直接重跑同一 workflow。npm 认证走 OIDC Trusted Publishers，不需要 `NPM_TOKEN`；前提是在 npmjs.com 后台为五个包各绑定一条 Trusted Publisher，内容须与 workflow 完全一致（大小写敏感）：仓库 `yourtion/dsh-decision`、workflow filename `release.yml`、不填 environment。Trusted publishing 未绑定或 CI 不可用时，回退手工发布：从各包目录按拓扑序单独 `pnpm publish --no-git-checks`（不要从根重跑 `pnpm -r publish`，会在已发布的包上报错中断）。发布后使用 `pi install npm:@techs/pi-decision` 或 `dsh plugin --profile web add @techs/dsh-decision @techs/dsh-decision-jev`，不依赖本地仓库。发布前应分别用 npm tarball 在干净的 pi 和 dsh profile 中验证安装。
+首次 `1.0.0` 先在本地登录 npm，按依赖顺序发布五个包，再为各包绑定 Trusted Publisher；完整命令见[首次发布与后续自动发布](releasing.md)。绑定需允许直接 `npm publish`，GitHub 字段使用 `yourtion/dsh-decision`、`release.yml`，environment 留空。之后更新所有包到相同版本并推送 `vX.Y.Z` 标签，`.github/workflows/release.yml` 自动校验、创建 GitHub release 并按依赖顺序发布，跳过已经存在的版本。npm 认证走 OIDC，不需要 `NPM_TOKEN`。
 
 接入其他概率判断模型时，实现 `@techs/dsh-decision` 的 `JudgmentProvider`，把该模型的请求与响应映射为具名的 `JudgmentRequest` / `JudgmentResult`，声明支持的 binary、categorical、ordinal 问题类型，并注册到 `ctx.decision`：
 
