@@ -1,6 +1,6 @@
 {
   "name": "@techs/dsh-decision-openrouter",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "OpenRouter Decisions adapter for dsh and pi",
   "keywords": [
     "decision",

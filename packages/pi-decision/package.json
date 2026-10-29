@@ -1,6 +1,6 @@
 {
   "name": "@techs/pi-decision",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Tool guardrail for pi with Jev, OpenAI and OpenRouter Decisions providers",
   "keywords": [
     "guardrail",

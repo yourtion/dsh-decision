@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file. The format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 follows [Semantic Versioning](https://semver.org/).
 
+## [0.2.2] - 2026-10-29
+
+### Fixed
+
+- Replace the unavailable `baseten/elephant-1:free` OpenRouter bundle model with
+  `baseten/elephant-1`; update setup examples and explicitly document paid usage.
+- Require explicit models for zero-price evaluation and read only
+  `OPENROUTER_API_KEY`, removing the legacy `DECISIONS_API_KEY` fallback.
+- Correct outdated Pi provider-selection documentation and record successful
+  OpenAI live verification for all three question types, dsh lifecycle, and Pi
+  guardrail redaction and auditing. OpenAI runtime behavior is unchanged.
+
 ## [0.2.1] - 2026-10-27
 
 ### Added
