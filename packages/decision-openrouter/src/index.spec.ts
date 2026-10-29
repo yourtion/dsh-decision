@@ -9,7 +9,7 @@ describe("dsh OpenRouter plugin lifecycle", () => {
   it("registers a usable provider and unregisters it when unloaded", async () => {
     const fetchImpl = vi.fn(async () =>
       Response.json({
-        model: "baseten/elephant-1:free",
+        model: "baseten/elephant-1",
         answers: { risk: { type: "noul", noul: 0.1 } },
       }),
     );
@@ -17,7 +17,7 @@ describe("dsh OpenRouter plugin lifecycle", () => {
     const ctx = new Context();
     try {
       await ctx.plugin(DecisionLayer, { provider: "openrouter", audit: { enabled: false } });
-      const fork = ctx.plugin(openrouter, { apiKey: "test-key", model: "baseten/elephant-1:free" });
+      const fork = ctx.plugin(openrouter, { apiKey: "test-key", model: "baseten/elephant-1" });
       await fork;
       const result = await ctx.decision.decision.evaluate({
         state: "evidence",

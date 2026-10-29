@@ -48,7 +48,7 @@ OpenAI bundle 选择 `provider: openai`、`timeoutMs: 8000`、`enforcement: shad
 
 dsh patch 替换整行 `config`，自定义策略要完整写在后加载的 profile patch；仓库既有示例 profile 仍使用 Jev。若已有 Jev 插件，不使用它时需禁用或移除，否则它仍会在加载时要求 Jev key。主模型凭证独立配置。
 
-协议与本地集成测试覆盖三类题型、拒答、非法答案、取消、超时、dsh 注册/卸载，以及 pi 的脱敏和失败策略。当前没有 OpenAI key 的现场调用结果，也没有 OpenAI 阈值校准报告；测试使用模拟 HTTP 响应。现有评估 CLI 仍专用于 Jev，不能直接当成 OpenAI 的校准工具。保持 shadow；该 provider 不提供机器审批自动放行资格。
+协议与本地集成测试覆盖三类题型、拒答、非法答案、取消、超时、dsh 注册/卸载，以及 pi 的脱敏和失败策略。2026-10-29 已使用独立的 `OPENAI_API_KEY` 完成真实 Decisions 调用，文本与 JSON state 的三类题型均通过协议及样例语义检查；dsh 插件真实调用与卸载、Pi 六维风险判断及脱敏审计也已通过。OpenAI 包的 37 项自动化测试覆盖配置、协议映射、非法响应、取消与超时；构建、类型检查和打包均通过。尚无 OpenAI 阈值校准报告。现有评估 CLI 仍专用于 Jev，不能直接当成 OpenAI 的校准工具。保持 shadow；该 provider 不提供机器审批自动放行资格。
 
 ## OpenRouter Decisions API
 
@@ -59,11 +59,11 @@ pnpm install
 pnpm run build
 export OPENROUTER_API_KEY=你的_OpenRouter_key
 export PI_DECISION_PROVIDER=openrouter
-export PI_DECISION_OPENROUTER_MODEL=baseten/elephant-1:free
+export PI_DECISION_OPENROUTER_MODEL=baseten/elephant-1
 pi -e ./packages/pi-decision
 ```
 
-dsh 可安装 `./packages/decision` 和 `./packages/decision-openrouter` 两个本地 bundle，后者选用 `provider: openrouter`、免费 Elephant 模型及 `shadow` 模式。Pi 支持 `PI_DECISION_OPENROUTER_BASE_URL` 和 `PI_DECISION_OPENROUTER_TIMEOUT_MS`，默认分别为 `https://openrouter.ai/api/alpha`、`8000`。直接调用 adapter 时必须显式配置 `model`；dsh 的 `questionKinds` 可限制具体模型支持的题型，默认三种题型。输入沿用核心 JSON/文本 state，未接入原生多模态。
+dsh 可安装 `./packages/decision` 和 `./packages/decision-openrouter` 两个本地 bundle，后者选用 `provider: openrouter`、付费 Elephant 模型（使用前检查实时价格）及 `shadow` 模式。Pi 支持 `PI_DECISION_OPENROUTER_BASE_URL` 和 `PI_DECISION_OPENROUTER_TIMEOUT_MS`，默认分别为 `https://openrouter.ai/api/alpha`、`8000`。直接调用 adapter 时必须显式配置 `model`；dsh 的 `questionKinds` 可限制具体模型支持的题型，默认三种题型。输入沿用核心 JSON/文本 state，未接入原生多模态。
 
 三种 adapter 使用相同的 binary/categorical/ordinal 问题、答案及可选用量字段。共享校验要求答案键精确匹配请求、完整概率分布和一致的期望 score；缺失 confidence 保留为缺失，不用选项概率替代。旧 `DecisionAdapter` 接口保留为兼容入口，新接入使用 `JudgmentProvider`。连接类型、用量类型和校验均从 `@techs/dsh-decision/kernel` 导出。
 
@@ -283,6 +283,6 @@ export function apply(ctx: Context): void {
 }
 ```
 
-在 dsh profile 中安装新 provider 插件，并把 `decision.config.provider` 设为它注册的 `id`；所启用切面需要的问题类型必须由它支持。是否使用 Jev 的 TypeSafe System One wire 格式只影响 adapter 实现，不影响核心策略。现有 pi 包的入口直接调用 `createJevProvider()`，所以不能只改环境变量就切换到其他模型；要给 pi 增加对应 adapter 的创建与选择逻辑。
+在 dsh profile 中安装新 provider 插件，并把 `decision.config.provider` 设为它注册的 `id`；所启用切面需要的问题类型必须由它支持。是否使用 Jev 的 TypeSafe System One wire 格式只影响 adapter 实现，不影响核心策略。pi 通过 `PI_DECISION_PROVIDER=jev|openai|openrouter` 选择对应 adapter，各自读取独立的凭证与模型配置。
 
 旧的 `DecisionAdapter` 仍可通过 `registerAdapter()` 注册，但它的 `calibrated` 布尔值不授予 v2 自动审批资格。发往外部 API 的 state 默认经本地脱敏（见[隐私与审计](#隐私与审计)），未识别的私密内容仍可能发出。当前实验默认阈值已采用 50 样本三轮评估的密钥风险更新（见[原始结果及复现](eval-2026-09-29-3x.md)）；样本仍小，换模型或修改问题后都应使用[评估工作台](#阈值评估)重新采集，在 `shadow` 下观察实际误判率，再考虑 `enforce`。

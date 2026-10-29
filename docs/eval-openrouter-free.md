@@ -25,9 +25,9 @@
 ```sh
 pnpm install
 pnpm run build
-pnpm --filter @techs/dsh-decision-openrouter run verify:free --out /tmp/openrouter-free-results.json
+pnpm --filter @techs/dsh-decision-openrouter run verify:free --models baseten/mammoth-1:free,baseten/elephant-1:free --out /tmp/openrouter-free-results.json
 ```
 
-脚本优先读取 `OPENROUTER_API_KEY`，否则读取 `DECISIONS_API_KEY`。云环境本次使用后者及 Node 24 的 `NODE_USE_ENV_PROXY=1`。脚本每次推理前重新检查零价格，只发送显式模型，不启用工具、自动重试或付费回退；报告费用非零或缺失时停止。
+历史运行使用 `DECISIONS_API_KEY` 及 Node 24 的 `NODE_USE_ENV_PROXY=1`。当前脚本只读取独立的 `OPENROUTER_API_KEY`；2026-10-29 原免费模型已不在目录中，当前配置见[接入说明](integration.md#openrouter-decisions-api)。脚本每次推理前重新检查零价格，只发送显式模型，不启用工具、自动重试或付费回退；报告费用非零或缺失时停止。
 
 [固定样例](../packages/decision-openrouter/eval/fixtures.json) · [执行脚本](../packages/decision-openrouter/eval/verify-free.mjs) · [原始结果](../packages/decision-openrouter/eval/results-2026-10-27-free.json)

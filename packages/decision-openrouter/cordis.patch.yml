@@ -11,5 +11,6 @@
       config:
         apiKeyEnv: OPENROUTER_API_KEY
         baseUrl: https://openrouter.ai/api/alpha
-        model: baseten/elephant-1:free
+        # Paid model; check current catalog pricing before use.
+        model: baseten/elephant-1
         timeoutMs: 8000

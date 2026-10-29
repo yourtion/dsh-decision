@@ -8,7 +8,7 @@ describe("pi provider selection", () => {
     const env = {
       PI_DECISION_PROVIDER: "openrouter",
       OPENROUTER_API_KEY: "key",
-      PI_DECISION_OPENROUTER_MODEL: "baseten/elephant-1:free",
+      PI_DECISION_OPENROUTER_MODEL: "baseten/elephant-1",
     };
     expect(createPiProvider(env).id).toBe("openrouter");
     expect(resolvePiOpenRouterSpec(env)).toMatchObject({
@@ -32,7 +32,7 @@ describe("pi provider selection", () => {
     const env = {
       PI_DECISION_PROVIDER: "openrouter",
       OPENROUTER_API_KEY: "key",
-      PI_DECISION_OPENROUTER_MODEL: "baseten/elephant-1:free",
+      PI_DECISION_OPENROUTER_MODEL: "baseten/elephant-1",
       PI_DECISION_ENFORCEMENT: "enforce",
       PI_DECISION_ON_FAILURE: "deny",
     };

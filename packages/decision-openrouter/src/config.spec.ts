@@ -4,14 +4,11 @@ import { resolveOpenRouterConfig } from "./spec.js";
 describe("OpenRouter Decisions config", () => {
   it("uses OPENROUTER_API_KEY with an explicitly selected Decisions model", () => {
     expect(
-      resolveOpenRouterConfig(
-        { model: "baseten/elephant-1:free" },
-        { OPENROUTER_API_KEY: "env-key" },
-      ),
+      resolveOpenRouterConfig({ model: "baseten/elephant-1" }, { OPENROUTER_API_KEY: "env-key" }),
     ).toEqual({
       baseUrl: "https://openrouter.ai/api/alpha",
       apiKey: "env-key",
-      model: "baseten/elephant-1:free",
+      model: "baseten/elephant-1",
       timeoutMs: 8_000,
       questionKinds: ["binary", "categorical", "ordinal"],
     });

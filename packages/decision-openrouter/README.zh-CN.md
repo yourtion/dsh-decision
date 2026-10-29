@@ -12,7 +12,7 @@ import { resolveOpenRouterConfig } from "@techs/dsh-decision-openrouter/spec";
 
 const adapter = new OpenRouterAdapter(
   resolveOpenRouterConfig({
-    model: "baseten/elephant-1:free",
+    model: "baseten/elephant-1",
   }),
 );
 const result = await adapter.evaluate({
@@ -46,7 +46,7 @@ pnpm install
 pnpm run build
 export OPENROUTER_API_KEY=你的_key
 export PI_DECISION_PROVIDER=openrouter
-export PI_DECISION_OPENROUTER_MODEL=baseten/elephant-1:free
+export PI_DECISION_OPENROUTER_MODEL=baseten/elephant-1
 pi -e ./packages/pi-decision
 ```
 
@@ -57,12 +57,12 @@ dsh plugin --profile web add ./packages/decision ./packages/decision-openrouter
 dsh web
 ```
 
-OpenRouter bundle 默认使用免费 Elephant、`provider: openrouter`、`enforcement: shadow` 和原生权限。既有 provider 插件未禁用或移除时，仍需要各自的 key。npm 安装请使用核心和适配器的 `0.2.1` 或更新版本。适配器不声明自动审批资格。宿主继续使用既有脱敏与审计；直接调用者自行准备出站 state。
+OpenRouter bundle 默认使用付费 Elephant（使用前检查实时价格）、`provider: openrouter`、`enforcement: shadow` 和原生权限。既有 provider 插件未禁用或移除时，仍需要各自的 key。npm 安装请使用核心和适配器的 `0.2.1` 或更新版本。适配器不声明自动审批资格。宿主继续使用既有脱敏与审计；直接调用者自行准备出站 state。
 
 免费模型验证：
 
 ```sh
-pnpm --filter @techs/dsh-decision-openrouter run verify:free --out /tmp/openrouter-free-results.json
+pnpm --filter @techs/dsh-decision-openrouter run verify:free --models YOUR_ZERO_PRICE_DECISIONS_MODEL --out /tmp/openrouter-free-results.json
 ```
 
-脚本在每次推理前查询实时价格，拒绝非零或缺失价格，不发送工具和付费回退；响应费用非零或缺失时停止。默认 Mammoth、Elephant 两模型，6 个中英文样例各重复 2 次，共 24 次请求、72 个答案。优先读取 `OPENROUTER_API_KEY`，否则读取云环境的 `DECISIONS_API_KEY`。使用网络代理时需配置 fetch 传输；本次 Node 24 运行设置了 `NODE_USE_ENV_PROXY=1`。结果见[验证报告](../../docs/eval-openrouter-free.md)。
+脚本在每次推理前查询实时价格，拒绝非零或缺失价格，不发送工具和付费回退；响应费用非零或缺失时停止。必须用 `--models` 显式选择支持全部三类题型的零价格模型，无默认模型。6 个中英文样例各重复 2 次。原 Mammoth/Elephant 免费版本截至 2026-10-29 已不在目录中。只读取 `OPENROUTER_API_KEY`。使用网络代理时需配置 fetch 传输；本次 Node 24 运行设置了 `NODE_USE_ENV_PROXY=1`。结果见[验证报告](../../docs/eval-openrouter-free.md)。

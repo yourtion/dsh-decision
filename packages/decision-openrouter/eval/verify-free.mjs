@@ -7,7 +7,7 @@ import { resolveOpenRouterConfig } from "../lib/spec.js";
 
 const { values } = parseArgs({
   options: {
-    models: { type: "string", default: "baseten/mammoth-1:free,baseten/elephant-1:free" },
+    models: { type: "string" },
     repeat: { type: "string", default: "2" },
     out: { type: "string" },
   },
@@ -17,6 +17,7 @@ assert(
   Number.isSafeInteger(repeat) && repeat > 0 && repeat <= 10,
   "repeat must be an integer from 1 to 10",
 );
+assert(values.models?.trim(), "--models must explicitly select zero-price Decisions models");
 const models = [
   ...new Set(
     values.models
@@ -27,7 +28,7 @@ const models = [
 ];
 assert(models.length > 0 && models.length <= 5, "choose between 1 and 5 models");
 // Resolve credentials before the run, without printing their values.
-const apiKeyEnv = process.env.OPENROUTER_API_KEY ? "OPENROUTER_API_KEY" : "DECISIONS_API_KEY";
+const apiKeyEnv = "OPENROUTER_API_KEY";
 const fixtures = JSON.parse(await readFile(new URL("./fixtures.json", import.meta.url), "utf8"));
 const questions = {
   cancellation: {

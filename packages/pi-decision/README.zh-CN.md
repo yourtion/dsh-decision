@@ -45,4 +45,4 @@ OpenAI 使用原生 [Decisions API](https://developers.openai.com/api/docs/guide
 
 ## OpenRouter Decisions
 
-设置 `PI_DECISION_PROVIDER=openrouter`、`OPENROUTER_API_KEY`，并用 `PI_DECISION_OPENROUTER_MODEL` 显式选模型，例如 `baseten/elephant-1:free`。可选 `PI_DECISION_OPENROUTER_BASE_URL` 默认 `https://openrouter.ai/api/alpha`，`PI_DECISION_OPENROUTER_TIMEOUT_MS` 默认 `8000`。该模式不读取 Jev 或 OpenAI key。npm 安装请使用 `0.2.1` 或更新版本；从源码加载扩展时需先构建。参见[适配器指南](../decision-openrouter/README.zh-CN.md)和[免费模型验证](../../docs/eval-openrouter-free.md)。
+设置 `PI_DECISION_PROVIDER=openrouter`、`OPENROUTER_API_KEY`，并用 `PI_DECISION_OPENROUTER_MODEL` 显式选模型，例如 `baseten/elephant-1`（付费；使用前检查实时价格）。可选 `PI_DECISION_OPENROUTER_BASE_URL` 默认 `https://openrouter.ai/api/alpha`，`PI_DECISION_OPENROUTER_TIMEOUT_MS` 默认 `8000`。该模式不读取 Jev 或 OpenAI key。npm 安装请使用 `0.2.1` 或更新版本；从源码加载扩展时需先构建。参见[适配器指南](../decision-openrouter/README.zh-CN.md)和[免费模型验证](../../docs/eval-openrouter-free.md)。

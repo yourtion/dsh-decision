@@ -21,7 +21,7 @@ import { resolveOpenRouterConfig } from "@techs/dsh-decision-openrouter/spec";
 
 const adapter = new OpenRouterAdapter(
   resolveOpenRouterConfig({
-    model: "baseten/elephant-1:free",
+    model: "baseten/elephant-1",
   }),
 );
 const result = await adapter.evaluate({
@@ -55,7 +55,7 @@ pnpm install
 pnpm run build
 export OPENROUTER_API_KEY=your_key
 export PI_DECISION_PROVIDER=openrouter
-export PI_DECISION_OPENROUTER_MODEL=baseten/elephant-1:free
+export PI_DECISION_OPENROUTER_MODEL=baseten/elephant-1
 pi -e ./packages/pi-decision
 ```
 
@@ -66,12 +66,12 @@ dsh plugin --profile web add ./packages/decision ./packages/decision-openrouter
 dsh web
 ```
 
-The OpenRouter bundle selects the free Elephant model, `provider: openrouter`, `enforcement: shadow` and native permissions. Existing provider plugins still require their own credentials until disabled or removed. For registry installation, use version `0.2.1` or newer of both the core and adapter. This provider has no calibration qualification for machine approval. Existing host redaction and auditing apply; standalone callers must prepare their own outbound state.
+The OpenRouter bundle selects the paid Elephant model (check current catalog pricing), `provider: openrouter`, `enforcement: shadow` and native permissions. Existing provider plugins still require their own credentials until disabled or removed. For registry installation, use version `0.2.1` or newer of both the core and adapter. This provider has no calibration qualification for machine approval. Existing host redaction and auditing apply; standalone callers must prepare their own outbound state.
 
 Run the synthetic live checks with a freshly verified zero-price model:
 
 ```sh
-pnpm --filter @techs/dsh-decision-openrouter run verify:free --out /tmp/openrouter-free-results.json
+pnpm --filter @techs/dsh-decision-openrouter run verify:free --models YOUR_ZERO_PRICE_DECISIONS_MODEL --out /tmp/openrouter-free-results.json
 ```
 
-The script checks live catalog prices before every inference request, sends no paid fallback or tools, and stops if reported cost is nonzero or unavailable. It defaults to Mammoth and Elephant, six bilingual fixtures and two repeats (24 requests, 72 answers). It uses `OPENROUTER_API_KEY`, or the managed environment's `DECISIONS_API_KEY` when the former is absent. Proxy-based environments should configure their fetch transport (the recorded Node 24 run used `NODE_USE_ENV_PROXY=1`). See the [archived report](../../docs/eval-openrouter-free.md) for results and limits.
+The script checks live catalog prices before every inference request, sends no paid fallback or tools, and stops if reported cost is nonzero or unavailable. A model supporting all three question types must be explicitly selected with `--models`; there is no default. The fixtures cover six bilingual cases with two repeats. The former Mammoth/Elephant free variants are no longer listed as of 2026-10-29. It uses only `OPENROUTER_API_KEY`. Proxy-based environments should configure their fetch transport (the recorded Node 24 run used `NODE_USE_ENV_PROXY=1`). See the [archived report](../../docs/eval-openrouter-free.md) for results and limits.

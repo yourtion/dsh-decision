@@ -9,7 +9,7 @@ import { resolveOpenRouterConfig } from "./spec.js";
 
 const spec = resolveOpenRouterConfig({
   apiKey: "test-key",
-  model: "baseten/elephant-1:free",
+  model: "baseten/elephant-1",
   timeoutMs: 1000,
 });
 const request: JudgmentRequest = {
